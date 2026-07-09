@@ -13,3 +13,7 @@ xcuserdata/
 
 # macOS
 .DS_Store
+
+# Node (web/)
+node_modules/
+npm-debug.log*

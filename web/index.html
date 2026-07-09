@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>OlyApp</title>
+  <meta name="description" content="Solo Olympic weightlifting session generator" />
+
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#141b2e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="OlyApp" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <link rel="icon" href="icons/icon-32.png" sizes="32x32" type="image/png" />
+  <link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png" />
+
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <span class="topbar-title">OlyApp</span>
+  </header>
+
+  <main id="app"></main>
+
+  <nav class="tabbar">
+    <a href="#/" data-nav class="tabbar-link">
+      <span class="tabbar-icon">🏠</span>
+      <span>Home</span>
+    </a>
+    <a href="#/history" data-nav class="tabbar-link">
+      <span class="tabbar-icon">🕒</span>
+      <span>History</span>
+    </a>
+    <a href="#/maxes" data-nav class="tabbar-link">
+      <span class="tabbar-icon">📊</span>
+      <span>Maxes</span>
+    </a>
+  </nav>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
