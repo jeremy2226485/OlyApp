@@ -124,6 +124,7 @@ export const ACCESSORY_MOVES = [
   { name: "Glute Bridge", category: "posteriorChain", typicalPrescription: "15 reps" },
   { name: "Good Morning", category: "posteriorChain", typicalPrescription: "10 reps" },
   { name: "Leg Press (light, high-rep)", category: "posteriorChain", typicalPrescription: "15-20 reps" },
+  { name: "Hack Squat (light, high-rep)", category: "posteriorChain", typicalPrescription: "12-15 reps" },
 
   // Unilateral / stability
   { name: "Single-Arm Overhead Carry", category: "unilateral", typicalPrescription: "30-40 ft/side" },

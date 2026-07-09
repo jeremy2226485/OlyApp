@@ -15,6 +15,11 @@ import {
 
 const COMPETITION_CATEGORIES = new Set(["snatchFamily", "cleanJerkFamily"]);
 
+// Cara's bar weight, used to convert a total working weight into per-side
+// plate math. Adjust here if she switches to a different bar.
+const BAR_WEIGHT = { kg: 15, lb: 33 };
+const WORK_SET_COUNT = 3;
+
 const HOUR_MS = 3600 * 1000;
 
 function isRecent(dateStr, hours) {
@@ -34,6 +39,17 @@ function sessionHasHeavyLift(session, liftName) {
 function pickRandom(arr) {
   if (arr.length === 0) return undefined;
   return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function roundToIncrement(value, increment) {
+  return Math.round(value / increment) * increment;
+}
+
+// Per-side plate math: how much to add to each side of the bar to hit a
+// given total weight (plates load symmetrically).
+function perSideWeight(totalWeight, unit) {
+  const barWeight = BAR_WEIGHT[unit] ?? BAR_WEIGHT.kg;
+  return Math.max(0, (totalWeight - barWeight) / 2);
 }
 
 // MARK: - Rule 7: session length -> block count
@@ -135,24 +151,41 @@ export function buildPrimaryLift(template, history, maxes, testMax) {
 
   const max = maxes.find((m) => m.liftName.toLowerCase() === template.name.toLowerCase());
   const increment = max ? (max.unit === "kg" ? 2.5 : 5) : 5;
-  const estimatedWorkingWeight = max ? Math.round((max.oneRepMax * upper) / increment) * increment : null;
 
   const buildSets = ["Bar x5", ...template.buildPattern.map((pct) => {
     if (max) {
-      const weight = Math.round((max.oneRepMax * pct) / increment) * increment;
-      return `${weight} ${max.unit} (${Math.round(pct * 100)}%)`;
+      const weight = roundToIncrement(max.oneRepMax * pct, increment);
+      const perSide = perSideWeight(weight, max.unit);
+      return `${weight} ${max.unit} (${perSide} ${max.unit}/side) — ${Math.round(pct * 100)}%`;
     }
     return `${Math.round(pct * 100)}%`;
   })];
 
+  // 3 ascending work sets across the target percent range (was 5 — too many
+  // per Cara's feedback), each resolved to an actual weight + per-side plate
+  // math once a max is on file, not just a percent.
+  const setPercents =
+    WORK_SET_COUNT === 1
+      ? [upper]
+      : Array.from({ length: WORK_SET_COUNT }, (_, i) => lower + ((upper - lower) * i) / (WORK_SET_COUNT - 1));
+
+  const workSets = setPercents.map((percent) => {
+    if (!max) return { percent, weight: null, perSide: null, unit: null };
+    const weight = roundToIncrement(max.oneRepMax * percent, increment);
+    return { percent, weight, perSide: perSideWeight(weight, max.unit), unit: max.unit };
+  });
+
+  const estimatedWorkingWeight = workSets[workSets.length - 1].weight;
+
   const workSetsDescription = testMax
     ? "Work up in small jumps to a new 1RM attempt"
-    : `5 sets building to a top set at ${Math.round(lower * 100)}-${Math.round(upper * 100)}%`;
+    : `${WORK_SET_COUNT} sets building to a top set at ${Math.round(lower * 100)}-${Math.round(upper * 100)}%`;
 
   return {
     liftName: template.name,
     category: template.category,
     buildSets,
+    workSets,
     workSetsDescription,
     targetPercentRange: [lower, upper],
     estimatedWorkingWeight,

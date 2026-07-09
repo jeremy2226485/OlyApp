@@ -57,10 +57,14 @@ export function render(root) {
     const lift = session.primaryLifts[index];
     addMax({ liftName: lift.liftName, oneRepMax: weight, unit, dateSet: new Date().toISOString() });
     syncNow();
-    const increment = unit === "kg" ? 2.5 : 5;
-    const estimated = Math.round((weight * lift.targetPercentRange[1]) / increment) * increment;
+    // Rebuild via the same path as a swap so buildSets/workSets (not just a
+    // single estimated weight) pick up real numbers now that a max exists.
+    // History-derived parts (percent range, tempo note, cues) are unchanged
+    // since only the maxes list changed here.
+    const template = familyForLiftName(lift.liftName);
+    const rebuilt = buildPrimaryLift(template, getSessions(), getMaxes(), session.isMaxTestDay && index === 0);
     const updatedLifts = [...session.primaryLifts];
-    updatedLifts[index] = { ...lift, estimatedWorkingWeight: estimated, weightUnit: unit, needsMaxEntry: false };
+    updatedLifts[index] = rebuilt;
     persistAndRerender({ primaryLifts: updatedLifts });
   }
 
@@ -150,9 +154,7 @@ function primaryLiftCard(lift, index, onSaveMax, onSwap) {
     lift.isHeavyToday ? el("p", { class: "badge badge-heavy" }, "🔥 Heavy day") : null,
     el("ul", { class: "plain-list muted small" }, lift.buildSets.map((s) => el("li", {}, s))),
     el("p", { class: "work-sets" }, lift.workSetsDescription),
-    lift.estimatedWorkingWeight != null
-      ? el("p", { class: "estimate" }, `Estimated top set: ${lift.estimatedWorkingWeight} ${lift.weightUnit}`)
-      : null,
+    el("ul", { class: "plain-list work-set-list" }, lift.workSets.map((set, i) => el("li", {}, workSetLabel(set, i)))),
     lift.tempoNote ? el("p", { class: "muted small" }, `⏱ ${lift.tempoNote}`) : null,
     lift.needsMaxEntry ? maxEntryPrompt(lift.liftName, (w, u) => onSaveMax(index, w, u)) : null,
     swapLiftPicker(lift, index, onSwap),
@@ -183,6 +185,12 @@ function swapLiftPicker(lift, index, onSwap) {
       ),
     ]),
   ]);
+}
+
+function workSetLabel(set, index) {
+  const pct = `${Math.round(set.percent * 100)}%`;
+  if (set.weight == null) return `Set ${index + 1} — ${pct}`;
+  return `Set ${index + 1} — ${set.weight} ${set.unit} (${set.perSide} ${set.unit}/side) — ${pct}`;
 }
 
 function maxEntryPrompt(liftName, onSave) {

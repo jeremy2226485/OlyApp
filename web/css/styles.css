@@ -305,6 +305,15 @@ main#app {
   margin: 4px 0;
 }
 
+.work-set-list {
+  margin: 0 0 10px;
+}
+.work-set-list li {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 15px;
+}
+
 .stat-row {
   display: flex;
   justify-content: space-between;

@@ -10,7 +10,7 @@ import {
   buildAccessoryRound,
   generate,
 } from "./generator.js";
-import { familyForLiftName, SQUAT_VARIANTS, CLEAN_CUE, JERK_CUE } from "./precedentLibrary.js";
+import { familyForLiftName, SQUAT_VARIANTS, ACCESSORY_MOVES, CLEAN_CUE, JERK_CUE } from "./precedentLibrary.js";
 
 function loggedSession({ date, primaryLifts = [], accessoryMoves = [] }) {
   return { date, primaryLifts, accessoryMoves };
@@ -133,6 +133,12 @@ test("avoided movement is never selected in accessory round", () => {
   assert.ok(!round.exercises.some((e) => e.name === "Hollow Rocks"));
 });
 
+test("Hack Squat is in the posterior-chain accessory pool", () => {
+  const hackSquat = ACCESSORY_MOVES.find((m) => m.name === "Hack Squat (light, high-rep)");
+  assert.ok(hackSquat);
+  assert.equal(hackSquat.category, "posteriorChain");
+});
+
 // Technical cues + required prep drills
 
 test("Clean carries its cue and required prep drills", () => {
@@ -220,6 +226,61 @@ test("estimated weight is computed once a max is on file", () => {
   const lift = buildPrimaryLift(template, [], [max], false);
   assert.equal(lift.needsMaxEntry, false);
   assert.ok(lift.estimatedWorkingWeight != null);
+});
+
+// Work sets: 3 (not 5), each resolved to weight + per-side plate math once a max exists
+
+test("work sets description says 3 sets, not 5", () => {
+  const template = familyForLiftName("Snatch");
+  const lift = buildPrimaryLift(template, [], [], false);
+  assert.match(lift.workSetsDescription, /^3 sets building to/);
+});
+
+test("3 ascending work sets are produced regardless of max presence", () => {
+  const template = familyForLiftName("Snatch");
+  const withoutMax = buildPrimaryLift(template, [], [], false);
+  assert.equal(withoutMax.workSets.length, 3);
+  assert.ok(withoutMax.workSets.every((s) => s.weight === null && s.perSide === null));
+  assert.ok(withoutMax.workSets[0].percent < withoutMax.workSets[2].percent);
+
+  const max = { liftName: "Snatch", oneRepMax: 60, unit: "kg" };
+  const withMax = buildPrimaryLift(template, [], [max], false);
+  assert.equal(withMax.workSets.length, 3);
+  assert.ok(withMax.workSets.every((s) => s.weight != null && s.perSide != null));
+});
+
+test("work set weight and per-side plate math are computed correctly", () => {
+  const template = SQUAT_VARIANTS.find((l) => l.name === "Back Squat"); // range [0.75, 0.9]
+  const max = { liftName: "Back Squat", oneRepMax: 100, unit: "kg" };
+  const lift = buildPrimaryLift(template, [], [max], false);
+
+  assert.deepEqual(
+    lift.workSets.map((s) => s.weight),
+    [75, 82.5, 90]
+  );
+  assert.deepEqual(
+    lift.workSets.map((s) => s.perSide),
+    [30, 33.75, 37.5]
+  );
+  // Top (last) work set is the reported estimated working weight.
+  assert.equal(lift.estimatedWorkingWeight, 90);
+});
+
+test("per-side math never goes negative when the target weight is under an empty bar", () => {
+  const template = SQUAT_VARIANTS.find((l) => l.name === "Overhead Squat"); // range [0.5, 0.7], light
+  const max = { liftName: "Overhead Squat", oneRepMax: 20, unit: "kg" }; // very light max
+  const lift = buildPrimaryLift(template, [], [max], false);
+  assert.ok(lift.workSets.every((s) => s.perSide >= 0));
+});
+
+test("build-up ramp shows per-side plate math once a max is on file", () => {
+  const template = familyForLiftName("Back Squat");
+  const max = { liftName: "Back Squat", oneRepMax: 100, unit: "kg" };
+  const lift = buildPrimaryLift(template, [], [max], false);
+  assert.ok(lift.buildSets.some((s) => s.includes("/side")));
+
+  const liftNoMax = buildPrimaryLift(template, [], [], false);
+  assert.ok(liftNoMax.buildSets.every((s) => !s.includes("/side")));
 });
 
 // Manual "which lift(s) today" override
