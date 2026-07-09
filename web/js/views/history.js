@@ -1,5 +1,6 @@
 import { getSessions, deleteLoggedSession } from "../storage.js";
 import { el, formatDate } from "../ui.js";
+import { syncNow } from "../sync.js";
 
 export function render(root) {
   renderContent();
@@ -72,6 +73,7 @@ function sessionCard(session, onChange) {
         onclick: () => {
           if (confirm("Delete this logged session?")) {
             deleteLoggedSession(session.id);
+            syncNow();
             onChange();
           }
         },

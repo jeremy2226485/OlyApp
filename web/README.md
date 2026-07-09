@@ -50,11 +50,32 @@ Open the deployed URL in Safari → Share → **Add to Home Screen**. It launche
 
 ## Data safety
 
-All data (sessions, maxes) lives only in this browser's `localStorage` — there's no backend, so nothing syncs across devices. A device reset, a switch to a new phone, or clearing Safari website data loses it. The Maxes screen has an **Export Data** / **Import Data** pair (`js/storage.js`: `exportAllData` / `importAllData`) that round-trips everything to/from a JSON file, so a backup taken before switching phones can be re-imported on the new one. There's no automatic cloud sync — this is a manual, user-triggered backup, matching the "no backend for v1" decision.
+All data (sessions, maxes) lives in this browser's `localStorage` first — that's still the source of truth on every device, and the app works fully offline-first regardless of sync state. Two ways to get it off a single device:
+
+- **Export / Import** (Maxes screen): a manual, one-tap JSON download / re-upload. Zero setup, zero external accounts. Good for an occasional point-in-time backup.
+- **Cloud Sync** (Maxes screen, see below): automatic, using a private GitHub Gist as storage.
+
+### Cloud Sync
+
+`js/sync.js` implements sync against a private GitHub Gist, using the GitHub REST API directly from the browser (GitHub's API supports CORS for exactly this kind of client-side use — no proxy/backend needed).
+
+**Why a Gist and not real File System / local autosave:** browsers (Safari on iOS in particular) don't let a webpage silently write to a file on the device — that's blocked for security reasons everywhere, not a Safari-specific gap. The only way to get *automatic* (not manually re-triggered) sync is some network-reachable store, and a Gist is the lightest-weight one that doesn't require standing up a backend.
+
+**Setup (once per device):** Settings → Developer settings → Personal access tokens → **Tokens (classic)** on GitHub, generate one with only the **`gist`** scope checked, paste it into the Cloud Sync card on the Maxes screen. A token from the *same GitHub account* on a second device automatically finds the first device's backup gist (matched by a fixed description, `js/sync.js`'s `GIST_DESCRIPTION`) — no gist ID or link needs to be copied around.
+
+**When it syncs:** on every app open/reload (`js/main.js`, fire-and-forget on boot, re-renders the current screen if it pulled newer data) and after every local mutation (add/edit/delete a max, delete a session, Mark Complete, import) — a strict superset of "open/reload/complete." `js/storage.js` tracks a `lastModified` timestamp bumped on every mutation; `resolveSyncDirection()` in `js/sync.js` (unit-tested in `sync.test.js`) compares local vs. remote and pulls or pushes whichever is older.
+
+**Conflict model — last-write-wins on the whole backup, not a field-level merge.** Safe for "use phone A today, phone B tomorrow." *Not* safe for editing on two devices at the same time without syncing in between — whichever device syncs second overwrites the other's unsynced changes wholesale. This is a deliberate simplification for a single person's own training log, not a general multi-writer sync system.
+
+**Failure handling:** sync is always best-effort. A bad/expired token, no network, or a deleted gist just shows an error status on the Maxes screen — local data is untouched and the app keeps working normally either way.
+
+**Token storage:** the PAT lives in this browser's `localStorage` (`olyapp.syncConfig`), scoped only to `gist` if you followed the setup instructions above (can't touch repos or anything else on the account). It never leaves the device except in Authorization headers sent directly to `api.github.com`.
 
 ## Notable behaviors added post-v1
 
 - **kg is the default unit** everywhere a weight is entered (max entry, both inline on Session Detail and on the Maxes screen).
 - **"Specific lift(s) today"** on New Session lets Cara pick up to 2 lifts from a dropdown (grouped by category) to override the automatic rotation for that session; `generate()`'s `specifiedLifts` option fills whichever slot(s) match the chosen lift's category (competition vs. squat/pull) and leaves any remaining slot on auto-pick. The load/intensity-spacing rules in `buildPrimaryLift` still apply even to an explicitly chosen lift — an explicit pick overrides *which* lift is trained, not the safety capping on *how heavy*.
 - **"Avoid a movement today"** is now a dropdown (grouped: Primary Lifts / Accessory Moves) instead of free text, so it can't drift out of sync with what the generator actually recognizes.
-- **Physio-mandated prep drills** (Jerk: behind-the-neck push jerk in split / press in split / widen my split; Clean: tall muscle clean / tall clean, 5x each) render in a visually distinct "Required — `<lift>`" block within the warm-up card, grouped per lift and never interleaved with the general warm-up or another lift's drills. `buildWarmup()`'s `liftSpecificPrep` is structured per-lift (`{ liftName, requiredPrepDrills, buildUp }`) rather than a flat string list, specifically so the UI can group it.
+- **"Swap Lift" on Session Detail** is a dropdown (defaulted to the currently displayed lift) plus an explicit Swap button, not a random-cycle button — she picks exactly what she wants instead of re-clicking and hoping.
+- **Physio-mandated prep drills** (Jerk: behind-the-neck push jerk in split / press in split / widen my split; Clean: tall muscle clean / tall clean, 5x each) render in a visually distinct "Required — `<lift>`" block within the warm-up card, grouped per lift and never interleaved with the general warm-up or another lift's drills. `buildWarmup()`'s `liftSpecificPrep` is structured per-lift (`{ liftName, requiredPrepDrills, buildUp }`) rather than a flat string list, specifically so the UI can group it. The general prep list is trimmed (down to a floor of 2 items) in proportion to how many required drills are present, so the required drills are additive *within* the rule-8 time budget rather than silently making the real warm-up run longer than the displayed estimate.
+- **Cloud Sync** — see above.

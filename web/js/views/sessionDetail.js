@@ -10,6 +10,7 @@ import {
   familyForLiftName,
 } from "../precedentLibrary.js";
 import { el } from "../ui.js";
+import { syncNow } from "../sync.js";
 
 function poolForCategory(category) {
   switch (category) {
@@ -55,6 +56,7 @@ export function render(root) {
   function saveMax(index, weight, unit) {
     const lift = session.primaryLifts[index];
     addMax({ liftName: lift.liftName, oneRepMax: weight, unit, dateSet: new Date().toISOString() });
+    syncNow();
     const increment = unit === "kg" ? 2.5 : 5;
     const estimated = Math.round((weight * lift.targetPercentRange[1]) / increment) * increment;
     const updatedLifts = [...session.primaryLifts];
@@ -90,6 +92,7 @@ export function render(root) {
 
   function markComplete() {
     addLoggedSession(toLoggedSession(session));
+    syncNow();
     completed = true;
     clearCurrentSession();
     rerender();

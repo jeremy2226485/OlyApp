@@ -3,6 +3,7 @@ import { render as renderNewSession } from "./views/newSession.js";
 import { render as renderSessionDetail } from "./views/sessionDetail.js";
 import { render as renderHistory } from "./views/history.js";
 import { render as renderMaxes } from "./views/maxes.js";
+import { syncNow } from "./sync.js";
 
 const routes = {
   "#/": renderHome,
@@ -41,6 +42,14 @@ window.addEventListener("DOMContentLoaded", renderRoute);
 if (document.readyState !== "loading") {
   renderRoute();
 }
+
+// Sync on open/reload. Fire-and-forget: the current route already rendered
+// from local data above, so this can't block first paint. If the sync pulls
+// newer data from another device, re-render whatever route is still active
+// so it doesn't sit stale until the next navigation.
+syncNow().then((result) => {
+  if (result.state === "pulled") renderRoute();
+});
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

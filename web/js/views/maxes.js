@@ -1,6 +1,13 @@
 import { getMaxes, addMax, updateMax, deleteMax, exportAllData, importAllData } from "../storage.js";
 import { ALL_PRIMARY_LIFTS } from "../precedentLibrary.js";
 import { el } from "../ui.js";
+import {
+  isSyncConfigured,
+  getSyncStatus,
+  connectSync,
+  disconnectSync,
+  syncNow,
+} from "../sync.js";
 
 export function render(root) {
   let showAddForm = false;
@@ -37,9 +44,91 @@ export function render(root) {
               { class: "empty-state" },
               "Maxes are added the first time a lift shows up as a primary lift, or add one manually."
             ),
+        syncCard(),
         backupCard(),
       ])
     );
+  }
+
+  // Fire a sync after any local mutation. Best-effort: doesn't block the UI
+  // (renderContent() already ran with the local change), just refreshes the
+  // sync status line — and the data itself — once the sync settles.
+  function syncAndRerender() {
+    syncNow().then(() => renderContent());
+  }
+
+  function syncCard() {
+    if (!isSyncConfigured()) {
+      const tokenInput = el("input", {
+        type: "password",
+        placeholder: "GitHub personal access token",
+        class: "text-input",
+        autocomplete: "off",
+      });
+      return el("div", { class: "card" }, [
+        el("h3", { class: "card-title" }, "Cloud Sync"),
+        el(
+          "p",
+          { class: "muted small" },
+          "Automatically syncs sessions and maxes across your devices (on open, reload, and every save) using a private GitHub Gist as storage — no server to maintain. Create a classic token at github.com/settings/tokens with only the \"gist\" scope checked, then paste it here. Using a token from the same GitHub account on another device finds this same backup automatically — no need to copy an ID around."
+        ),
+        el(
+          "p",
+          { class: "muted small" },
+          "Note: this syncs the whole backup, last-save-wins — fine for using one phone at a time, not for editing two phones at once without syncing in between."
+        ),
+        tokenInput,
+        el(
+          "button",
+          {
+            type: "button",
+            class: "btn btn-primary btn-block",
+            onclick: async () => {
+              const token = tokenInput.value.trim();
+              if (!token) return;
+              try {
+                await connectSync(token);
+              } catch (err) {
+                alert(`Couldn't connect: ${err.message}`);
+              }
+              renderContent();
+            },
+          },
+          "Connect"
+        ),
+      ]);
+    }
+
+    const status = getSyncStatus();
+    return el("div", { class: "card" }, [
+      el("h3", { class: "card-title" }, "Cloud Sync"),
+      el("p", { class: "muted small" }, syncStatusText(status)),
+      el("div", { class: "inline-input-row" }, [
+        el(
+          "button",
+          {
+            type: "button",
+            class: "btn btn-secondary",
+            onclick: () => syncAndRerender(),
+          },
+          "Sync Now"
+        ),
+        el(
+          "button",
+          {
+            type: "button",
+            class: "btn-link danger",
+            onclick: () => {
+              if (confirm("Disconnect cloud sync on this device? Your data stays put, it just stops syncing.")) {
+                disconnectSync();
+                renderContent();
+              }
+            },
+          },
+          "Disconnect"
+        ),
+      ]),
+    ]);
   }
 
   function backupCard() {
@@ -48,7 +137,9 @@ export function render(root) {
       el(
         "p",
         { class: "muted small" },
-        "Data lives only on this device's browser storage — it isn't synced anywhere. Export before switching phones or resetting this one, then import on the new device to bring it back."
+        isSyncConfigured()
+          ? "Cloud Sync above handles cross-device sync automatically. This is still useful for a manual point-in-time snapshot."
+          : "Data lives only on this device's browser storage. Export before switching phones or resetting this one, then import on the new device to bring it back — or set up Cloud Sync above to do this automatically."
       ),
       el("div", { class: "inline-input-row" }, [
         el("button", { type: "button", class: "btn btn-secondary", onclick: handleExport }, "Export Data"),
@@ -81,7 +172,7 @@ export function render(root) {
           const count = `${data.sessions?.length ?? 0} sessions, ${data.maxes?.length ?? 0} maxes`;
           if (!confirm(`Replace all data on this device with the backup (${count})?`)) return;
           importAllData(data);
-          renderContent();
+          syncAndRerender();
         } catch (err) {
           alert(`Couldn't import that file: ${err.message}`);
         }
@@ -129,7 +220,7 @@ export function render(root) {
               dateSet: new Date().toISOString(),
             });
             showAddForm = false;
-            renderContent();
+            syncAndRerender();
           },
         },
         "Save"
@@ -160,7 +251,7 @@ export function render(root) {
           class: "btn-link danger",
           onclick: () => {
             deleteMax(max.id);
-            renderContent();
+            syncAndRerender();
           },
         },
         "Delete"
@@ -195,7 +286,7 @@ export function render(root) {
             if (!weight || weight <= 0) return;
             updateMax(max.id, { oneRepMax: weight, unit: unitSelect.value });
             editingId = null;
-            renderContent();
+            syncAndRerender();
           },
         },
         "Save"
@@ -214,4 +305,16 @@ export function render(root) {
       ),
     ]);
   }
+}
+
+function syncStatusText(status) {
+  if (status.state === "syncing") return "Syncing…";
+  if (status.state === "error") return `Sync failed: ${status.message}. Your data is safe locally — this just means it hasn't reached the cloud yet.`;
+  if (status.state === "synced") {
+    const when = status.at ? new Date(status.at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) : "";
+    return status.message === "pulled"
+      ? `Connected — pulled newer data from another device at ${when}.`
+      : `Connected — last synced at ${when}.`;
+  }
+  return "Connected — not yet synced on this device.";
 }
