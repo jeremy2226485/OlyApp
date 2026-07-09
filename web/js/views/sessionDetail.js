@@ -115,9 +115,19 @@ function warmupCard(warmup) {
   return el("div", { class: "card" }, [
     el("h3", { class: "card-title" }, `Warm-Up (~${warmup.estimatedMinutes} min)`),
     el("ul", { class: "plain-list" }, warmup.generalPrep.map((item) => el("li", {}, item))),
-    warmup.liftSpecificPrep.length
-      ? el("ul", { class: "plain-list" }, warmup.liftSpecificPrep.map((item) => el("li", {}, item)))
+    ...warmup.liftSpecificPrep.map((lift) => liftPrepGroup(lift)),
+  ]);
+}
+
+function liftPrepGroup(lift) {
+  return el("div", { class: "prep-group" }, [
+    lift.requiredPrepDrills.length
+      ? el("div", { class: "prep-required" }, [
+          el("div", { class: "section-label prep-required-label" }, `Required — ${lift.liftName}`),
+          el("ul", { class: "plain-list" }, lift.requiredPrepDrills.map((item) => el("li", {}, item))),
+        ])
       : null,
+    el("ul", { class: "plain-list" }, [el("li", {}, lift.buildUp)]),
   ]);
 }
 
@@ -145,8 +155,8 @@ function maxEntryPrompt(liftName, onSave) {
     class: "text-input small",
   });
   const unitSelect = el("select", { class: "select-input" }, [
-    el("option", { value: "lb" }, "LB"),
     el("option", { value: "kg" }, "KG"),
+    el("option", { value: "lb" }, "LB"),
   ]);
 
   return el("details", { class: "max-prompt" }, [

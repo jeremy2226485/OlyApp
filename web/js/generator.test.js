@@ -151,12 +151,28 @@ test("Jerk From Rack carries its cue and required prep drills", () => {
   assert.ok(template.technicalCues.includes(JERK_CUE));
 });
 
-test("warm-up automatically includes required prep drills", () => {
+test("warm-up automatically includes required prep drills, grouped per lift", () => {
+  const cleanTemplate = familyForLiftName("Clean");
+  const squatTemplate = SQUAT_VARIANTS.find((l) => l.name === "Back Squat");
+  const cleanLift = buildPrimaryLift(cleanTemplate, [], [], false);
+  const squatLift = buildPrimaryLift(squatTemplate, [], [], false);
+  const warmup = buildWarmup([cleanLift, squatLift], 8);
+
+  assert.equal(warmup.liftSpecificPrep.length, 2);
+  const cleanGroup = warmup.liftSpecificPrep.find((g) => g.liftName === "Clean");
+  assert.deepEqual(cleanGroup.requiredPrepDrills, ["Tall muscle clean x5", "Tall clean x5"]);
+  assert.ok(cleanGroup.buildUp.startsWith("Clean build-up:"));
+
+  const squatGroup = warmup.liftSpecificPrep.find((g) => g.liftName === "Back Squat");
+  assert.deepEqual(squatGroup.requiredPrepDrills, []);
+  assert.ok(squatGroup.buildUp.startsWith("Back Squat build-up:"));
+});
+
+test("general warm-up prep is present alongside required drills, not replaced by them", () => {
   const template = familyForLiftName("Clean");
   const lift = buildPrimaryLift(template, [], [], false);
   const warmup = buildWarmup([lift], 8);
-  assert.ok(warmup.liftSpecificPrep.some((s) => s.startsWith("Tall muscle clean")));
-  assert.ok(warmup.liftSpecificPrep.some((s) => s.startsWith("Tall clean")));
+  assert.ok(warmup.generalPrep.length > 0);
 });
 
 // Lazy 1RM entry
@@ -174,6 +190,34 @@ test("estimated weight is computed once a max is on file", () => {
   const lift = buildPrimaryLift(template, [], [max], false);
   assert.equal(lift.needsMaxEntry, false);
   assert.ok(lift.estimatedWorkingWeight != null);
+});
+
+// Manual "which lift(s) today" override
+
+test("specified lift fills the single-session slot instead of auto-rotation", () => {
+  const session = generate(45, [], [], { specifiedLifts: ["Snatch Balance"] });
+  assert.equal(session.primaryLifts.length, 1);
+  assert.equal(session.primaryLifts[0].liftName, "Snatch Balance");
+});
+
+test("specified competition lift and specified secondary lift both honored in a dual-primary session", () => {
+  const session = generate(90, [], [], { specifiedLifts: ["Power Snatch", "Front Squat"] });
+  const names = session.primaryLifts.map((l) => l.liftName);
+  assert.ok(names.includes("Power Snatch"));
+  assert.ok(names.includes("Front Squat"));
+});
+
+test("specifying only a secondary-category lift leaves the competition slot on auto-pick", () => {
+  const session = generate(90, [], [], { specifiedLifts: ["Clean Pull"] });
+  const names = session.primaryLifts.map((l) => l.liftName);
+  assert.ok(names.includes("Clean Pull"));
+  assert.equal(session.primaryLifts.length, 2);
+});
+
+test("unrecognized specified lift name is ignored, falling back to auto-selection", () => {
+  const session = generate(45, [], [], { specifiedLifts: ["Not A Real Lift"] });
+  assert.equal(session.primaryLifts.length, 1);
+  assert.ok(session.primaryLifts[0].liftName.length > 0);
 });
 
 // Optional true 1RM-finder day

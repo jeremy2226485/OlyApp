@@ -65,3 +65,23 @@ export function deleteMax(id) {
 export function findMaxByLiftName(liftName) {
   return getMaxes().find((m) => m.liftName.toLowerCase() === liftName.toLowerCase());
 }
+
+// Backup/restore. Data here lives only in this browser's localStorage — it
+// is not synced anywhere, so a device reset or a switch to a new phone loses
+// it unless it's exported first and re-imported on the new device.
+export function exportAllData() {
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    sessions: readJSON(SESSIONS_KEY, []),
+    maxes: readJSON(MAXES_KEY, []),
+  };
+}
+
+export function importAllData(data) {
+  if (!data || !Array.isArray(data.sessions) || !Array.isArray(data.maxes)) {
+    throw new Error("That file doesn't look like an OlyApp export.");
+  }
+  writeJSON(SESSIONS_KEY, data.sessions);
+  writeJSON(MAXES_KEY, data.maxes);
+}

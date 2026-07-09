@@ -47,3 +47,14 @@ After that, every push that touches `web/**` triggers a deploy automatically, an
 ## Installing on an iPhone
 
 Open the deployed URL in Safari → Share → **Add to Home Screen**. It launches full-screen with no browser chrome, using the manifest/service-worker in this folder for the app icon and basic offline caching of the app shell.
+
+## Data safety
+
+All data (sessions, maxes) lives only in this browser's `localStorage` — there's no backend, so nothing syncs across devices. A device reset, a switch to a new phone, or clearing Safari website data loses it. The Maxes screen has an **Export Data** / **Import Data** pair (`js/storage.js`: `exportAllData` / `importAllData`) that round-trips everything to/from a JSON file, so a backup taken before switching phones can be re-imported on the new one. There's no automatic cloud sync — this is a manual, user-triggered backup, matching the "no backend for v1" decision.
+
+## Notable behaviors added post-v1
+
+- **kg is the default unit** everywhere a weight is entered (max entry, both inline on Session Detail and on the Maxes screen).
+- **"Specific lift(s) today"** on New Session lets Cara pick up to 2 lifts from a dropdown (grouped by category) to override the automatic rotation for that session; `generate()`'s `specifiedLifts` option fills whichever slot(s) match the chosen lift's category (competition vs. squat/pull) and leaves any remaining slot on auto-pick. The load/intensity-spacing rules in `buildPrimaryLift` still apply even to an explicitly chosen lift — an explicit pick overrides *which* lift is trained, not the safety capping on *how heavy*.
+- **"Avoid a movement today"** is now a dropdown (grouped: Primary Lifts / Accessory Moves) instead of free text, so it can't drift out of sync with what the generator actually recognizes.
+- **Physio-mandated prep drills** (Jerk: behind-the-neck push jerk in split / press in split / widen my split; Clean: tall muscle clean / tall clean, 5x each) render in a visually distinct "Required — `<lift>`" block within the warm-up card, grouped per lift and never interleaved with the general warm-up or another lift's drills. `buildWarmup()`'s `liftSpecificPrep` is structured per-lift (`{ liftName, requiredPrepDrills, buildUp }`) rather than a flat string list, specifically so the UI can group it.

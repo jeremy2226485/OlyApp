@@ -1,12 +1,22 @@
 import { getSessions, getMaxes } from "../storage.js";
 import { generate } from "../generator.js";
 import { setCurrentSession } from "../state.js";
+import { ALL_PRIMARY_LIFTS, ACCESSORY_MOVES } from "../precedentLibrary.js";
 import { el } from "../ui.js";
 
 const PRESETS = [45, 60, 90];
+const MAX_SPECIFIED_LIFTS = 2;
+
+const LIFT_CATEGORY_LABELS = {
+  snatchFamily: "Snatch Family",
+  cleanJerkFamily: "Clean & Jerk Family",
+  squat: "Squat",
+  pull: "Pulls",
+};
 
 export function render(root) {
   let length = 90;
+  const specifiedLifts = new Set();
   const avoidSet = new Set();
 
   const lengthLabel = el("div", { class: "length-readout" }, `${length} min`);
@@ -55,47 +65,21 @@ export function render(root) {
     },
   });
 
-  const avoidInput = el("input", { type: "text", placeholder: "e.g. Snatch Balance", class: "text-input" });
-  const chipRow = el("div", { class: "chip-row" });
+  const liftSelect = groupedLiftSelect("Choose a lift…");
+  const liftSection = pickerSection({
+    label: "Specific lift(s) today",
+    hint: `Optional — pick up to ${MAX_SPECIFIED_LIFTS}. Leave empty to let the generator rotate as usual.`,
+    select: liftSelect,
+    items: specifiedLifts,
+    maxItems: MAX_SPECIFIED_LIFTS,
+  });
 
-  function renderChips() {
-    chipRow.innerHTML = "";
-    [...avoidSet].sort().forEach((name) => {
-      chipRow.appendChild(
-        el("span", { class: "tag" }, [
-          name,
-          el(
-            "button",
-            {
-              type: "button",
-              class: "tag-remove",
-              onclick: () => {
-                avoidSet.delete(name);
-                renderChips();
-              },
-            },
-            "×"
-          ),
-        ])
-      );
-    });
-  }
-
-  const addAvoidBtn = el(
-    "button",
-    {
-      type: "button",
-      class: "btn btn-secondary",
-      onclick: () => {
-        const trimmed = avoidInput.value.trim();
-        if (!trimmed) return;
-        avoidSet.add(trimmed);
-        avoidInput.value = "";
-        renderChips();
-      },
-    },
-    "Add"
-  );
+  const avoidSelect = avoidMovementSelect("Choose a movement…");
+  const avoidSection = pickerSection({
+    label: "Avoid a movement today",
+    select: avoidSelect,
+    items: avoidSet,
+  });
 
   const generateBtn = el(
     "button",
@@ -105,7 +89,11 @@ export function render(root) {
       onclick: () => {
         const history = getSessions();
         const maxes = getMaxes();
-        const session = generate(length, history, maxes, { testMax, avoidMovements: avoidSet });
+        const session = generate(length, history, maxes, {
+          testMax,
+          avoidMovements: avoidSet,
+          specifiedLifts: [...specifiedLifts],
+        });
         setCurrentSession(session);
         location.hash = "#/session";
       },
@@ -128,13 +116,99 @@ export function render(root) {
         el("label", { class: "field-label checkbox-label" }, [testMaxToggle, " Test a 1RM today?"]),
       ]),
 
-      el("div", { class: "field-group" }, [
-        el("label", { class: "field-label" }, "Avoid a movement today"),
-        el("div", { class: "inline-input-row" }, [avoidInput, addAvoidBtn]),
-        chipRow,
-      ]),
+      liftSection,
+      avoidSection,
 
       generateBtn,
     ])
   );
+}
+
+// Reusable dropdown-plus-removable-chips picker used by both the "specific
+// lift(s)" and "avoid a movement" fields.
+function pickerSection({ label, hint, select, items, maxItems }) {
+  const chipRow = el("div", { class: "chip-row" });
+
+  function renderChips() {
+    chipRow.innerHTML = "";
+    [...items].sort().forEach((name) => {
+      chipRow.appendChild(
+        el("span", { class: "tag" }, [
+          name,
+          el(
+            "button",
+            {
+              type: "button",
+              class: "tag-remove",
+              onclick: () => {
+                items.delete(name);
+                renderChips();
+              },
+            },
+            "×"
+          ),
+        ])
+      );
+    });
+  }
+  renderChips();
+
+  const addBtn = el(
+    "button",
+    {
+      type: "button",
+      class: "btn btn-secondary",
+      onclick: () => {
+        const value = select.value;
+        if (!value) return;
+        if (maxItems && items.size >= maxItems) return;
+        items.add(value);
+        select.value = "";
+        renderChips();
+      },
+    },
+    "Add"
+  );
+
+  return el("div", { class: "field-group" }, [
+    el("label", { class: "field-label" }, label),
+    el("div", { class: "inline-input-row" }, [select, addBtn]),
+    hint ? el("p", { class: "muted small" }, hint) : null,
+    chipRow,
+  ]);
+}
+
+function groupedLiftSelect(placeholder) {
+  const groups = new Map();
+  for (const lift of ALL_PRIMARY_LIFTS) {
+    const label = LIFT_CATEGORY_LABELS[lift.category] ?? lift.category;
+    if (!groups.has(label)) groups.set(label, []);
+    groups.get(label).push(lift.name);
+  }
+  const optgroups = [...groups.entries()].map(([label, names]) =>
+    el(
+      "optgroup",
+      { label },
+      names.map((name) => el("option", { value: name }, name))
+    )
+  );
+  return el("select", { class: "select-input" }, [el("option", { value: "" }, placeholder), ...optgroups]);
+}
+
+function avoidMovementSelect(placeholder) {
+  const primaryNames = ALL_PRIMARY_LIFTS.map((l) => l.name).sort();
+  const accessoryNames = ACCESSORY_MOVES.map((m) => m.name).sort();
+  return el("select", { class: "select-input" }, [
+    el("option", { value: "" }, placeholder),
+    el(
+      "optgroup",
+      { label: "Primary Lifts" },
+      primaryNames.map((name) => el("option", { value: name }, name))
+    ),
+    el(
+      "optgroup",
+      { label: "Accessory Moves" },
+      accessoryNames.map((name) => el("option", { value: name }, name))
+    ),
+  ]);
 }

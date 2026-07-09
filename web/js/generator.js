@@ -10,7 +10,10 @@ import {
   snatchCompetitionLifts,
   cleanJerkCompetitionLifts,
   allPullVariants,
+  familyForLiftName,
 } from "./precedentLibrary.js";
+
+const COMPETITION_CATEGORIES = new Set(["snatchFamily", "cleanJerkFamily"]);
 
 const HOUR_MS = 3600 * 1000;
 
@@ -163,6 +166,11 @@ export function buildPrimaryLift(template, history, maxes, testMax) {
 }
 
 // MARK: - Rule 8 (warm-up) + required prep drills
+//
+// Required prep drills (e.g. the physio's mandatory Jerk/Clean inclusions)
+// are kept grouped per lift — never interleaved with another lift's drills
+// or with the general prep — but they're additive to the general warm-up,
+// not a replacement for it.
 
 export function buildWarmup(primaryLifts, minutes) {
   const generalPrep = [
@@ -171,12 +179,12 @@ export function buildWarmup(primaryLifts, minutes) {
     "Cossack squats x8/side",
     "Empty-bar good morning + RDL + back squat complex x5",
   ];
-  const liftSpecific = primaryLifts.flatMap((lift) => {
-    const drills = lift.requiredPrepDrills.map((d) => `${d} x5`);
-    drills.push(`${lift.liftName} build-up: ` + lift.buildSets.join(" -> "));
-    return drills;
-  });
-  return { generalPrep, liftSpecificPrep: liftSpecific, estimatedMinutes: minutes };
+  const liftSpecificPrep = primaryLifts.map((lift) => ({
+    liftName: lift.liftName,
+    requiredPrepDrills: lift.requiredPrepDrills.map((d) => `${d} x5`),
+    buildUp: `${lift.liftName} build-up: ` + lift.buildSets.join(" -> "),
+  }));
+  return { generalPrep, liftSpecificPrep, estimatedMinutes: minutes };
 }
 
 // MARK: - Rule 3 (push/pull balance) + rule 5 (core folded into accessory)
@@ -229,24 +237,41 @@ export function buildAccessoryRound(history, rounds, movementCount, avoid) {
 export function generate(lengthMinutes, history, maxes, options = {}) {
   const testMax = options.testMax ?? false;
   const avoid = options.avoidMovements ?? new Set();
+  const specifiedNames = options.specifiedLifts ?? [];
 
   const sortedHistory = [...history].sort((a, b) => new Date(b.date) - new Date(a.date));
   const lastSession = sortedHistory[0] ?? null;
 
   const structure = sessionStructure(lengthMinutes);
   const warmupMinutes = warmupDuration(lengthMinutes);
+  const slotCount = structure === "single" ? 1 : 2;
 
   // Rule 1: rotate competition-lift family vs. the most recent logged session.
-  const compFamilyCategory = chooseCompetitionFamily(lastSession);
-  const compPool = compFamilyCategory === "snatchFamily" ? snatchCompetitionLifts() : cleanJerkCompetitionLifts();
-  const compTemplate = chooseLiftTemplate(compPool, sortedHistory, avoid);
-
-  const primaryLifts = [buildPrimaryLift(compTemplate, sortedHistory, maxes, testMax)];
-
-  if (structure !== "single") {
-    const secondaryTemplate = chooseSecondaryTemplate(sortedHistory, avoid);
-    primaryLifts.push(buildPrimaryLift(secondaryTemplate, sortedHistory, maxes, false));
+  function autoCompTemplate() {
+    const family = chooseCompetitionFamily(lastSession);
+    const pool = family === "snatchFamily" ? snatchCompetitionLifts() : cleanJerkCompetitionLifts();
+    return chooseLiftTemplate(pool, sortedHistory, avoid);
   }
+
+  // "Which lift(s) today" override: explicit choices fill their category's
+  // slot directly (skipping rotation/selection, not the load/spacing rules
+  // in buildPrimaryLift below), leaving any remaining slot on auto-pick.
+  const specifiedTemplates = specifiedNames.map((name) => familyForLiftName(name)).filter(Boolean).slice(0, slotCount);
+  const specifiedComp = specifiedTemplates.find((t) => COMPETITION_CATEGORIES.has(t.category)) ?? null;
+  const specifiedSecondary = specifiedTemplates.find((t) => !COMPETITION_CATEGORIES.has(t.category)) ?? null;
+
+  let primaryTemplates;
+  if (slotCount === 1) {
+    primaryTemplates = [specifiedComp ?? specifiedSecondary ?? autoCompTemplate()];
+  } else {
+    const comp = specifiedComp ?? autoCompTemplate();
+    const secondary = specifiedSecondary ?? chooseSecondaryTemplate(sortedHistory, avoid);
+    primaryTemplates = [comp, secondary];
+  }
+
+  const primaryLifts = primaryTemplates.map((template, i) =>
+    buildPrimaryLift(template, sortedHistory, maxes, testMax && i === 0)
+  );
 
   const warmup = buildWarmup(primaryLifts, warmupMinutes);
 
