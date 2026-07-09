@@ -175,6 +175,36 @@ test("general warm-up prep is present alongside required drills, not replaced by
   assert.ok(warmup.generalPrep.length > 0);
 });
 
+test("general prep is untouched when no lift has required prep drills", () => {
+  const template = SQUAT_VARIANTS.find((l) => l.name === "Back Squat");
+  const lift = buildPrimaryLift(template, [], [], false);
+  const warmup = buildWarmup([lift], 8);
+  assert.equal(warmup.generalPrep.length, 4);
+});
+
+test("general prep is trimmed to make room when required prep drills are present", () => {
+  const cleanTemplate = familyForLiftName("Clean"); // 2 required drills
+  const cleanLift = buildPrimaryLift(cleanTemplate, [], [], false);
+  const cleanOnlyWarmup = buildWarmup([cleanLift], 8);
+  assert.equal(cleanOnlyWarmup.generalPrep.length, 3);
+
+  const complexTemplate = familyForLiftName("Clean and Jerk"); // 5 required drills
+  const complexLift = buildPrimaryLift(complexTemplate, [], [], false);
+  const complexWarmup = buildWarmup([complexLift], 8);
+  assert.equal(complexWarmup.generalPrep.length, 2);
+});
+
+test("general prep never trims below 2 items regardless of how many drills are required", () => {
+  const cleanTemplate = familyForLiftName("Clean and Jerk");
+  const jerkTemplate = familyForLiftName("Jerk From Rack");
+  const lifts = [
+    buildPrimaryLift(cleanTemplate, [], [], false),
+    buildPrimaryLift(jerkTemplate, [], [], false),
+  ];
+  const warmup = buildWarmup(lifts, 10);
+  assert.ok(warmup.generalPrep.length >= 2);
+});
+
 // Lazy 1RM entry
 
 test("needsMaxEntry is true when no max is on file", () => {

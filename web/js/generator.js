@@ -169,21 +169,30 @@ export function buildPrimaryLift(template, history, maxes, testMax) {
 //
 // Required prep drills (e.g. the physio's mandatory Jerk/Clean inclusions)
 // are kept grouped per lift — never interleaved with another lift's drills
-// or with the general prep — but they're additive to the general warm-up,
-// not a replacement for it.
+// or with the general prep — and they're additive content within the same
+// overall time budget (rule 8), not on top of it: the general prep list is
+// trimmed to make room rather than letting the warm-up run long.
+
+const FULL_GENERAL_PREP = [
+  "Bike or row, 2-3 min easy",
+  "Banded shoulder dislocates + pass-throughs",
+  "Cossack squats x8/side",
+  "Empty-bar good morning + RDL + back squat complex x5",
+];
+const MIN_GENERAL_PREP_ITEMS = 2;
 
 export function buildWarmup(primaryLifts, minutes) {
-  const generalPrep = [
-    "Bike or row, 2-3 min easy",
-    "Banded shoulder dislocates + pass-throughs",
-    "Cossack squats x8/side",
-    "Empty-bar good morning + RDL + back squat complex x5",
-  ];
   const liftSpecificPrep = primaryLifts.map((lift) => ({
     liftName: lift.liftName,
     requiredPrepDrills: lift.requiredPrepDrills.map((d) => `${d} x5`),
     buildUp: `${lift.liftName} build-up: ` + lift.buildSets.join(" -> "),
   }));
+
+  const requiredDrillCount = liftSpecificPrep.reduce((sum, group) => sum + group.requiredPrepDrills.length, 0);
+  const maxTrim = FULL_GENERAL_PREP.length - MIN_GENERAL_PREP_ITEMS;
+  const trimCount = Math.min(Math.floor(requiredDrillCount / 2), maxTrim);
+  const generalPrep = trimCount > 0 ? FULL_GENERAL_PREP.slice(0, FULL_GENERAL_PREP.length - trimCount) : FULL_GENERAL_PREP;
+
   return { generalPrep, liftSpecificPrep, estimatedMinutes: minutes };
 }
 

@@ -7,8 +7,24 @@ import {
   allPullVariants,
   SQUAT_VARIANTS,
   ACCESSORY_MOVES,
+  familyForLiftName,
 } from "../precedentLibrary.js";
 import { el } from "../ui.js";
+
+function poolForCategory(category) {
+  switch (category) {
+    case "snatchFamily":
+      return snatchCompetitionLifts();
+    case "cleanJerkFamily":
+      return cleanJerkCompetitionLifts();
+    case "squat":
+      return SQUAT_VARIANTS;
+    case "pull":
+      return allPullVariants();
+    default:
+      return [];
+  }
+}
 
 export function render(root) {
   let session = getCurrentSession();
@@ -46,19 +62,12 @@ export function render(root) {
     persistAndRerender({ primaryLifts: updatedLifts });
   }
 
-  function swapPrimaryLift(index) {
+  function swapPrimaryLift(index, targetLiftName) {
     const current = session.primaryLifts[index];
-    const poolByCategory = {
-      snatchFamily: snatchCompetitionLifts(),
-      cleanJerkFamily: cleanJerkCompetitionLifts(),
-      squat: SQUAT_VARIANTS,
-      pull: allPullVariants(),
-    };
-    const pool = poolByCategory[current.category] ?? [];
-    const alternatives = pool.filter((l) => l.name !== current.liftName);
-    if (!alternatives.length) return;
-    const newTemplate = alternatives[Math.floor(Math.random() * alternatives.length)];
-    const rebuilt = buildPrimaryLift(newTemplate, getSessions(), getMaxes(), session.isMaxTestDay && index === 0);
+    if (!targetLiftName || targetLiftName === current.liftName) return;
+    const template = familyForLiftName(targetLiftName);
+    if (!template) return;
+    const rebuilt = buildPrimaryLift(template, getSessions(), getMaxes(), session.isMaxTestDay && index === 0);
     const updatedLifts = [...session.primaryLifts];
     updatedLifts[index] = rebuilt;
     persistAndRerender({ primaryLifts: updatedLifts });
@@ -143,7 +152,33 @@ function primaryLiftCard(lift, index, onSaveMax, onSwap) {
       : null,
     lift.tempoNote ? el("p", { class: "muted small" }, `⏱ ${lift.tempoNote}`) : null,
     lift.needsMaxEntry ? maxEntryPrompt(lift.liftName, (w, u) => onSaveMax(index, w, u)) : null,
-    el("button", { type: "button", class: "btn-link", onclick: () => onSwap(index) }, "Swap Lift"),
+    swapLiftPicker(lift, index, onSwap),
+  ]);
+}
+
+function swapLiftPicker(lift, index, onSwap) {
+  const pool = poolForCategory(lift.category);
+  const select = el(
+    "select",
+    { class: "select-input" },
+    pool.map((template) => el("option", { value: template.name }, template.name))
+  );
+  select.value = lift.liftName;
+
+  return el("div", { class: "field-group" }, [
+    el("label", { class: "field-label" }, "Swap this lift"),
+    el("div", { class: "inline-input-row" }, [
+      select,
+      el(
+        "button",
+        {
+          type: "button",
+          class: "btn btn-secondary",
+          onclick: () => onSwap(index, select.value),
+        },
+        "Swap"
+      ),
+    ]),
   ]);
 }
 
