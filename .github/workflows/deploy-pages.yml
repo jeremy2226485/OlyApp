@@ -4,7 +4,7 @@ on:
   push:
     branches:
       - main
-      - claude/weightlifting-workout-generator-vuak73
+      - claude/olympic-lifting-app-bfc4ft
     paths:
       - "web/**"
       - ".github/workflows/deploy-pages.yml"

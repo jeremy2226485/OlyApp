@@ -1,60 +1,48 @@
-import { render as renderHome } from "./views/home.js";
-import { render as renderNewSession } from "./views/newSession.js";
-import { render as renderSessionDetail } from "./views/sessionDetail.js";
-import { render as renderHistory } from "./views/history.js";
-import { render as renderMaxes } from "./views/maxes.js";
-import { syncNow } from "./sync.js";
+// App shell: hash router + service worker + opportunistic sync.
+
+import { clear } from "./lib/dom.js";
+import { syncNow } from "./lib/sync.js";
+import { renderHome } from "./views/home.js";
+import { renderGenerate } from "./views/generate.js";
+import { renderSession } from "./views/session.js";
+import { renderHistory } from "./views/history.js";
+import { renderSettings } from "./views/settings.js";
 
 const routes = {
+  "": renderHome,
   "#/": renderHome,
-  "#/new": renderNewSession,
-  "#/session": renderSessionDetail,
+  "#/generate": renderGenerate,
+  "#/session": renderSession,
   "#/history": renderHistory,
-  "#/maxes": renderMaxes,
+  "#/settings": renderSettings,
 };
 
-const root = document.getElementById("app");
-const navLinks = document.querySelectorAll("[data-nav]");
-
-function currentRoute() {
-  return location.hash || "#/";
-}
-
-function updateNavActiveState() {
-  const route = currentRoute();
-  navLinks.forEach((link) => {
-    link.classList.toggle("active", link.getAttribute("href") === route);
-  });
-}
-
-function renderRoute() {
-  const route = currentRoute();
-  const renderFn = routes[route] ?? renderHome;
-  root.innerHTML = "";
-  renderFn(root);
-  updateNavActiveState();
+function render() {
+  const view = routes[location.hash] ?? renderHome;
+  const app = clear(document.getElementById("app"));
+  view(app);
+  for (const link of document.querySelectorAll("[data-nav]")) {
+    const active = link.getAttribute("href") === (location.hash || "#/");
+    link.classList.toggle("active", active);
+  }
   window.scrollTo(0, 0);
 }
 
-window.addEventListener("hashchange", renderRoute);
-window.addEventListener("DOMContentLoaded", renderRoute);
+window.addEventListener("hashchange", render);
+window.addEventListener("DOMContentLoaded", render);
+if (document.readyState !== "loading") render();
 
-if (document.readyState !== "loading") {
-  renderRoute();
-}
-
-// Sync on open/reload. Fire-and-forget: the current route already rendered
-// from local data above, so this can't block first paint. If the sync pulls
-// newer data from another device, re-render whatever route is still active
-// so it doesn't sit stale until the next navigation.
-syncNow().then((result) => {
-  if (result.state === "pulled") renderRoute();
+// Sync on open (fire-and-forget — local data already painted), and push local
+// changes up whenever the app is backgrounded.
+syncNow().then((r) => {
+  if (r.state === "pulled") render();
+});
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "hidden") syncNow();
 });
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("service-worker.js").catch(() => {
-      // Offline installability is a nice-to-have; ignore registration failures.
-    });
+    navigator.serviceWorker.register("service-worker.js").catch(() => {});
   });
 }

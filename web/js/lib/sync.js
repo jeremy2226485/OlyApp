@@ -1,20 +1,15 @@
-// Optional automatic cross-device sync, backed by a private GitHub Gist as
-// a free JSON blob store. Entirely best-effort on top of storage.js — local
-// data in localStorage is always the source of truth for this device; a
-// failed or never-configured sync never blocks anything, it just means this
-// device's data stays local until the next successful sync.
+// Optional cross-device sync backed by a private GitHub Gist (the user has a
+// token). Last-write-wins on the whole backup — fine for one lifter moving
+// between devices, not a multi-writer merge.
 //
-// Concurrency note: this is last-write-wins on the *whole* backup, not a
-// field-level merge. Safe for "use phone A today, phone B tomorrow." Not
-// safe for editing on two unsynced devices at the same time — whichever
-// syncs second overwrites the other's changes. Fine for one person's own
-// training log, not a general-purpose multi-writer sync.
+// v2 writes a NEW file inside the same auto-managed gist
+// (olyapp-data-v2.json) so the old app's v1 file is left untouched.
 
 import { exportAllData, importAllData, getLastModified } from "./storage.js";
 
 const CONFIG_KEY = "olyapp.syncConfig";
 const GIST_DESCRIPTION = "OlyApp data backup (auto-managed — do not rename or delete)";
-const GIST_FILENAME = "olyapp-data.json";
+const GIST_FILENAME = "olyapp-data-v2.json";
 const API = "https://api.github.com";
 
 let lastStatus = { state: "idle", message: null, at: null };
@@ -35,13 +30,9 @@ export function getSyncConfig() {
   }
 }
 
-function saveSyncConfig(config) {
-  localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
-}
-
 export function isSyncConfigured() {
-  const config = getSyncConfig();
-  return !!(config && config.token && config.gistId);
+  const c = getSyncConfig();
+  return !!(c && c.token && c.gistId);
 }
 
 export function disconnectSync() {
@@ -69,7 +60,6 @@ async function findOrCreateGist(token) {
   const gists = await githubFetch("/gists", token);
   const existing = gists.find((g) => g.description === GIST_DESCRIPTION);
   if (existing) return existing.id;
-
   const created = await githubFetch("/gists", token, {
     method: "POST",
     body: JSON.stringify({
@@ -81,16 +71,12 @@ async function findOrCreateGist(token) {
   return created.id;
 }
 
-// Connects this device: validates the token, finds this account's existing
-// backup gist (so a second device using a token from the same GitHub
-// account automatically finds the first device's data) or creates one, then
-// runs an initial sync.
 export async function connectSync(token) {
   setStatus("syncing", null);
   try {
     await githubFetch("/user", token);
     const gistId = await findOrCreateGist(token);
-    saveSyncConfig({ token, gistId });
+    localStorage.setItem(CONFIG_KEY, JSON.stringify({ token, gistId }));
     return await runSync();
   } catch (err) {
     setStatus("error", err.message);
@@ -118,26 +104,23 @@ async function pushRemote(config) {
   });
 }
 
-// Pure decision, kept separate from the network calls so it's unit-testable
-// without mocking fetch.
+// Pure decision, unit-testable without mocking fetch.
 export function resolveSyncDirection(localModified, remoteModified) {
   if (!remoteModified) return "push";
   if (!localModified) return "pull";
   return new Date(remoteModified) > new Date(localModified) ? "pull" : "push";
 }
 
-let syncInFlight = null;
+let inFlight = null;
 
-// Safe to call anytime, from anywhere, as often as you like — no-ops if
-// sync isn't configured, and overlapping calls coalesce into one request.
 export function syncNow() {
   if (!isSyncConfigured()) return Promise.resolve({ state: "unconfigured" });
-  if (!syncInFlight) {
-    syncInFlight = runSync().finally(() => {
-      syncInFlight = null;
+  if (!inFlight) {
+    inFlight = runSync().finally(() => {
+      inFlight = null;
     });
   }
-  return syncInFlight;
+  return inFlight;
 }
 
 async function runSync() {
@@ -147,9 +130,13 @@ async function runSync() {
     const remote = await pullRemote(config);
     const direction = resolveSyncDirection(getLastModified(), remote?.lastModified ?? null);
     if (direction === "pull" && remote) {
-      importAllData(remote, { at: remote.lastModified });
-      setStatus("synced", "pulled");
-      return { state: "pulled" };
+      try {
+        importAllData(remote, { at: remote.lastModified });
+        setStatus("synced", "pulled");
+        return { state: "pulled" };
+      } catch {
+        // Remote blob isn't a valid v2 export — replace it with ours.
+      }
     }
     await pushRemote(config);
     setStatus("synced", "pushed");

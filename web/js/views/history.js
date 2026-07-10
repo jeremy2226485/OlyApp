@@ -1,84 +1,53 @@
-import { getSessions, deleteLoggedSession } from "../storage.js";
-import { el, formatDate } from "../ui.js";
-import { syncNow } from "../sync.js";
+// History: logged sessions with per-block top %s and make/miss counts.
 
-export function render(root) {
-  renderContent();
+import { h } from "../lib/dom.js";
+import { getSessions, deleteSession } from "../lib/storage.js";
+import { syncNow } from "../lib/sync.js";
 
-  function renderContent() {
-    root.innerHTML = "";
-    const sessions = getSessions();
+function fmtDate(dateStr) {
+  return new Date(dateStr).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" });
+}
 
-    root.appendChild(
-      el("section", { class: "screen" }, [
-        el("h2", {}, "History"),
-        sessions.length ? frequencyCard(sessions) : null,
-        sessions.length
-          ? el("div", { class: "card-list" }, sessions.map((s) => sessionCard(s, renderContent)))
-          : el("p", { class: "empty-state" }, "Completed sessions will show up here."),
-      ])
+export function renderHistory(root) {
+  const sessions = getSessions();
+
+  root.append(h("h1", { class: "tag-title tag-title-sm" }, "HISTORY"));
+
+  if (!sessions.length) {
+    root.append(h("p", { class: "muted empty" }, "No sessions logged yet."));
+    return;
+  }
+
+  for (const s of sessions) {
+    const blockLines = (s.blocks ?? []).map((b) => {
+      const results = b.setResults ?? [];
+      const work = results.filter((r) => r.phase !== "warmup");
+      const made = work.filter((r) => r.done && !r.missed).length;
+      const missed = work.filter((r) => r.missed).length;
+      const top = b.topPct != null ? ` @ ${Math.round(b.topPct * 100)}%` : "";
+      const tally = work.length ? ` — ${made}/${work.length} made${missed ? `, ${missed} missed` : ""}` : "";
+      return h("li", {}, h("b", {}, b.name), `${top}${tally}`);
+    });
+
+    root.append(
+      h("div", { class: "card" },
+        h("div", { class: "card-mini-head" },
+          h("b", {}, `${fmtDate(s.date)} · ${s.family === "snatch" ? "Snatch day" : "Clean & jerk day"}`),
+          h("span", { class: `chip chip-${s.intent}` }, s.intent)
+        ),
+        h("ul", { class: "plain-list" }, blockLines),
+        h("p", { class: "muted small" },
+          `${s.minutes} min · accessory: ${(s.accessory?.moves ?? []).map((m) => m.name).join(", ") || "—"}`),
+        h("button", {
+          class: "btn btn-ghost btn-danger btn-small",
+          onClick: () => {
+            if (!confirm("Delete this logged session?")) return;
+            deleteSession(s.id);
+            syncNow();
+            renderHistory(root.replaceChildren() ?? root);
+          },
+        }, "Delete")
+      )
     );
   }
-}
-
-function daysSinceHeavy(sessions, category) {
-  const last = sessions.find((s) => s.primaryLifts.some((l) => l.category === category && l.wasHeavy));
-  if (!last) return "—";
-  const days = Math.floor((Date.now() - new Date(last.date).getTime()) / 86400000);
-  return `${days}d ago`;
-}
-
-function lastLiftName(sessions, category) {
-  for (const s of sessions) {
-    const lift = s.primaryLifts.find((l) => l.category === category);
-    if (lift) return lift.liftName;
-  }
-  return "—";
-}
-
-function frequencyCard(sessions) {
-  return el("div", { class: "card" }, [
-    el("h3", { class: "card-title" }, "Frequency"),
-    statRow("Days since last heavy snatch", daysSinceHeavy(sessions, "snatchFamily")),
-    statRow("Days since last heavy clean/jerk", daysSinceHeavy(sessions, "cleanJerkFamily")),
-    statRow("Last squat variant", lastLiftName(sessions, "squat")),
-    statRow("Last pull variant", lastLiftName(sessions, "pull")),
-  ]);
-}
-
-function statRow(label, value) {
-  return el("div", { class: "stat-row" }, [el("span", { class: "muted" }, label), el("strong", {}, value)]);
-}
-
-function sessionCard(session, onChange) {
-  return el("div", { class: "card" }, [
-    el("div", { class: "card-row" }, [
-      el("strong", {}, formatDate(session.date)),
-      el("span", { class: "muted" }, `${session.lengthMinutes} min`),
-    ]),
-    el(
-      "ul",
-      { class: "plain-list small" },
-      session.primaryLifts.map((l) => el("li", {}, `${l.liftName} — ${l.setsReps} @ ${l.loadDescription}`))
-    ),
-    session.accessoryMoves.length ? el("div", { class: "muted small" }, session.accessoryMoves.join(", ")) : null,
-    session.tempoOrPauseVariant
-      ? el("div", { class: "muted small accent-text" }, session.tempoOrPauseVariant)
-      : null,
-    el(
-      "button",
-      {
-        type: "button",
-        class: "btn-link danger",
-        onclick: () => {
-          if (confirm("Delete this logged session?")) {
-            deleteLoggedSession(session.id);
-            syncNow();
-            onChange();
-          }
-        },
-      },
-      "Delete"
-    ),
-  ]);
 }

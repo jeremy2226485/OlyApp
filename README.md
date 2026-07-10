@@ -1,42 +1,55 @@
 # OlyApp
 
-Generates a single Olympic weightlifting solo-training session on demand, based on session length and recent training history. Built for Cara, an intermediate lifter who trains alone at a well-equipped commercial gym.
+Generates a single Olympic weightlifting solo-training session on demand, based on
+session length and recent training history — programmed the way a coach would, not a
+dice roll. Built for Cara, an intermediate lifter who trains alone at a well-equipped
+commercial gym.
 
-**Primary deliverable: [`web/`](web/)** — a static, no-build-step web app (vanilla HTML/CSS/JS, installable as a home-screen PWA on iPhone). See [`web/README.md`](web/README.md) for how to run and deploy it.
+**The app lives in [`web/`](web/)** — a static, no-build-step web app (vanilla
+HTML/CSS/JS, installable as a home-screen PWA on iPhone), deployed straight from this
+repo via GitHub Pages (`.github/workflows/deploy-pages.yml`). The earlier SwiftUI
+prototype and the original v1 web generator were removed in the v2 rewrite; both are in
+git history if ever needed.
 
-`OlyApp/` and `OlyAppTests/` are an earlier native SwiftUI + SwiftData iOS prototype, kept for reference but no longer the active target — building/testing/deploying it requires a Mac and Xcode, which is why the project moved to the web. Its `OlyApp/README.md`-equivalent content (architecture, resolved decisions) is preserved below for that version.
+## What the generator knows (v2)
 
-## Why two implementations
+The programming engine is built on the per-exercise "Programming" guidance from the
+Catalyst Athletics exercise library and Greg Everett's program-design articles,
+distilled into [`docs/catalyst-programming-notes.md`](docs/catalyst-programming-notes.md):
 
-The generation logic (precedent library + `WorkoutGenerator` rules engine) is the same in both — same nine v3 generation rules, same accessory bank, same Clean/Jerk cues and required prep drills — just written twice, once in Swift and once in vanilla JS. The web version is the one to use; the Swift version is left in place in case native iOS is revisited later (e.g. once there's a Mac available to build it, or the web app's users outgrow what a PWA can do — background notifications, deeper HealthKit integration, etc.).
+- **Big/little day alternation** — heavy comp lift + pull + squat days alternate with
+  speed/technique/overhead days, like a real training week.
+- **Non-linear loading schemes per lift and day intent** — sets across, ascending work
+  with shrinking jumps and reps cut near the top, wave loading, heavy singles with
+  back-off doubles, and RM top sets with back-offs computed from the day's top set.
+  Warm-up ramps taper reps and abbreviate for lifts later in the session.
+- **Catalyst percentage conventions** — pulls and deadlifts run off the snatch/clean
+  max (80-110% / 80-120%); power variants off the power max (estimated from the full
+  lift when not on file); snatch balance may exceed the best snatch.
+- **Session order** — primers → competition lifts → receiving/overhead → pulls →
+  squats → accessory with core folded in.
+- **Reactive rules** — family rotation, 48h heavy-lift spacing, squat balance, misses
+  capping the next heavy day at 85%, push/pull accessory alternation, heavy trunk work
+  limited to 2-3 days/week.
 
-## Resolved open question
+Real weights (kg default, 15kg bar default, both configurable) with per-side plate
+math are computed wherever a max is on file; missing maxes degrade to %-guidance with
+an in-session entry prompt.
 
-**"Avoid a movement today" is a manual override**, not purely history-driven — a set of movement names threaded through as `GenerationOptions.avoidMovements`, surfaced as a chip-based input on the New Session screen. History-driven balancing (family rotation, squat balance, intensity spacing) already happens automatically; the manual override exists for things the app has no way to infer (a tweaky shoulder that day, a busy rack, etc.).
+## Tracking
 
----
+Sessions are tracked per set (done / missed on the competition lifts, actual weight
+overrides), logged locally, and optionally synced across devices through a private
+GitHub Gist (Settings → Cloud sync, needs a token with the `gist` scope). Logged
+history is what drives the next generation.
 
-## iOS prototype (`OlyApp/`, `OlyAppTests/`) — reference only
+## Development
 
-Native SwiftUI + SwiftData. Open `OlyApp.xcodeproj` in Xcode 16+ and run on an iOS 17+ simulator or device (SwiftData requires iOS 17). Not covered by CI since it requires a macOS runner; the web app's tests are what actually run on every push.
+```
+cd web
+npm test         # engine + sync unit tests (node --test, no dependencies)
+python3 -m http.server 8123   # then open http://localhost:8123
+```
 
-### Architecture
-
-- `OlyApp/Models` — `LoggedSession` and `LifterMax` (`@Model`, SwiftData-persisted), plus the `LiftEntry` and `LiftCategory` value types.
-- `OlyApp/Precedent` — the static template bank (`PrecedentLibrary`): primary lift templates, the accessory movement bank, tempo/pause variants, and Cara's standing technique cues + required prep drills for Clean and Jerk.
-- `OlyApp/Generator` — `WorkoutGenerator`, a plain Swift rules engine (no UI/persistence dependencies) that implements generation rules 1–9 from the spec over the precedent library and recent `LoggedSession` history.
-- `OlyApp/Views` — the five screens: Home, New Session, Session Detail, History, Maxes/Settings.
-- `OlyAppTests/WorkoutGeneratorTests.swift` — unit tests covering each generation rule.
-
-### Notable implementation choices
-
-- **1RM entry is lazy and in-session.** The first time a lift with no `LifterMax` on file is selected as a primary lift, `SessionDetailView` shows an inline prompt on that lift's card.
-- **Session length interpolation.** Length buckets into single / primary+secondary / dual-primary per the spec's 45/60/90-minute anchors, while warm-up duration, accessory round count, and movement count scale continuously.
-- **Edit-in-place.** Session Detail lets Cara swap an individual primary lift or a single accessory exercise without discarding the rest of the generated plan.
-- **Accessory bank** reflects the confirmed gym inventory (leg press, cable functional trainer, GHD-style bench, AirBike/rower/SkiErg, sandbags, etc.). Conditioning-flavored moves are present in the data bank but intentionally excluded from the generator's default rotation, per the spec's "used sparingly, not the focus."
-
-### Known gaps for v2+
-
-- Snatch/Squat cue and prep-drill fields are wired up but only populated for Clean and Jerk per the spec.
-- No iCloud/CloudKit sync.
-- Stale-max flagging isn't implemented; `LifterMax.dateSet` is tracked so it can be added later.
+No build step: edit, refresh, done. The engine (`web/js/engine/`) is pure JS with no
+DOM dependencies so the programming rules stay unit-testable.
