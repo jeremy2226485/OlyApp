@@ -1,6 +1,6 @@
-import { getCurrentSession, setCurrentSession, clearCurrentSession } from "../state.js";
+import { getCurrentSession, setCurrentSession, clearCurrentSession, startCurrentSession } from "../state.js";
 import { addLoggedSession, addMax, getSessions, getMaxes } from "../storage.js";
-import { buildPrimaryLift, toLoggedSession } from "../generator.js";
+import { buildPrimaryLift, toLoggedSession, formatSetLabel } from "../generator.js";
 import {
   snatchCompetitionLifts,
   cleanJerkCompetitionLifts,
@@ -57,8 +57,8 @@ export function render(root) {
     const lift = session.primaryLifts[index];
     addMax({ liftName: lift.liftName, oneRepMax: weight, unit, dateSet: new Date().toISOString() });
     syncNow();
-    // Rebuild via the same path as a swap so buildSets/workSets (not just a
-    // single estimated weight) pick up real numbers now that a max exists.
+    // Rebuild via the same path as a swap so the full sets list (not just a
+    // single estimated weight) picks up real numbers now that a max exists.
     // History-derived parts (percent range, tempo note, cues) are unchanged
     // since only the maxes list changed here.
     const template = familyForLiftName(lift.liftName);
@@ -94,6 +94,17 @@ export function render(root) {
     persistAndRerender({ accessory: { ...session.accessory, exercises: updatedExercises } });
   }
 
+  function startWorkout() {
+    session = startCurrentSession(session);
+    rerender();
+  }
+
+  function discardWorkout() {
+    if (!confirm("Discard this workout? This can't be undone.")) return;
+    clearCurrentSession();
+    location.hash = "#/";
+  }
+
   function markComplete() {
     addLoggedSession(toLoggedSession(session));
     syncNow();
@@ -103,24 +114,44 @@ export function render(root) {
   }
 
   function buildView() {
+    const isDraft = session.status !== "started";
+
     return el("section", { class: "screen" }, [
       el("a", { href: "#/", class: "back-link" }, "‹ Home"),
       el("h2", {}, session.isMaxTestDay ? "Max Test Day" : `${session.requestedLengthMinutes} min Session`),
+      isDraft
+        ? el("p", { class: "muted small" }, "Review and swap anything you want, then start the workout.")
+        : el("p", { class: "muted small accent-text" }, "Workout in progress — locked in. Come back anytime; it's saved."),
 
       warmupCard(session.warmup),
-      ...session.primaryLifts.map((lift, i) => primaryLiftCard(lift, i, saveMax, swapPrimaryLift)),
-      accessoryCard(session.accessory, swapAccessoryExercise),
+      ...session.primaryLifts.map((lift, i) => primaryLiftCard(lift, i, saveMax, isDraft ? swapPrimaryLift : null)),
+      accessoryCard(session.accessory, isDraft ? swapAccessoryExercise : null),
 
-      el(
-        "button",
-        {
-          type: "button",
-          class: "btn btn-primary btn-block",
-          disabled: completed,
-          onclick: markComplete,
-        },
-        completed ? "Logged" : "Mark Complete"
-      ),
+      isDraft
+        ? el(
+            "button",
+            { type: "button", class: "btn btn-primary btn-block", onclick: startWorkout },
+            "Start Workout"
+          )
+        : el("div", { class: "field-group" }, [
+            el(
+              "button",
+              {
+                type: "button",
+                class: "btn btn-primary btn-block",
+                disabled: completed,
+                onclick: markComplete,
+              },
+              completed ? "Logged" : "Mark Complete"
+            ),
+            completed
+              ? null
+              : el(
+                  "button",
+                  { type: "button", class: "btn-link danger", onclick: discardWorkout },
+                  "Discard Workout"
+                ),
+          ]),
     ]);
   }
 
@@ -148,16 +179,26 @@ function liftPrepGroup(lift) {
 }
 
 function primaryLiftCard(lift, index, onSaveMax, onSwap) {
+  let workSetNumber = 0;
   return el("div", { class: "card" }, [
     el("h3", { class: "card-title" }, lift.liftName),
     ...lift.technicalCues.map((cue) => el("p", { class: "cue-box" }, cue)),
     lift.isHeavyToday ? el("p", { class: "badge badge-heavy" }, "🔥 Heavy day") : null,
-    el("ul", { class: "plain-list muted small" }, lift.buildSets.map((s) => el("li", {}, s))),
     el("p", { class: "work-sets" }, lift.workSetsDescription),
-    el("ul", { class: "plain-list work-set-list" }, lift.workSets.map((set, i) => el("li", {}, workSetLabel(set, i)))),
+    el(
+      "ul",
+      { class: "plain-list set-list" },
+      lift.sets.map((set) => {
+        if (set.phase === "work") {
+          workSetNumber += 1;
+          return el("li", { class: "set-item-work" }, `Set ${workSetNumber} — ${formatSetLabel(set)}`);
+        }
+        return el("li", { class: "set-item-ramp muted small" }, formatSetLabel(set));
+      })
+    ),
     lift.tempoNote ? el("p", { class: "muted small" }, `⏱ ${lift.tempoNote}`) : null,
     lift.needsMaxEntry ? maxEntryPrompt(lift.liftName, (w, u) => onSaveMax(index, w, u)) : null,
-    swapLiftPicker(lift, index, onSwap),
+    onSwap ? swapLiftPicker(lift, index, onSwap) : null,
   ]);
 }
 
@@ -185,12 +226,6 @@ function swapLiftPicker(lift, index, onSwap) {
       ),
     ]),
   ]);
-}
-
-function workSetLabel(set, index) {
-  const pct = `${Math.round(set.percent * 100)}%`;
-  if (set.weight == null) return `Set ${index + 1} — ${pct}`;
-  return `Set ${index + 1} — ${set.weight} ${set.unit} (${set.perSide} ${set.unit}/side) — ${pct}`;
 }
 
 function maxEntryPrompt(liftName, onSave) {
@@ -240,7 +275,7 @@ function accessoryCard(accessory, onSwap) {
             el("div", {}, `${ex.category === "core" ? "🧘 " : ""}${ex.name}`),
             el("div", { class: "muted small" }, ex.prescription),
           ]),
-          el("button", { type: "button", class: "icon-btn", title: "Swap", onclick: () => onSwap(i) }, "🔁"),
+          onSwap ? el("button", { type: "button", class: "icon-btn", title: "Swap", onclick: () => onSwap(i) }, "🔁") : null,
         ])
       )
     ),

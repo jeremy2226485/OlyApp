@@ -299,19 +299,16 @@ main#app {
   margin: 4px 0;
 }
 
-.estimate {
-  color: var(--accent);
-  font-weight: 700;
-  margin: 4px 0;
-}
-
-.work-set-list {
+.set-list {
   margin: 0 0 10px;
 }
-.work-set-list li {
+.set-item-work {
   color: var(--accent);
   font-weight: 700;
   font-size: 15px;
+}
+.set-item-ramp {
+  font-weight: 400;
 }
 
 .stat-row {

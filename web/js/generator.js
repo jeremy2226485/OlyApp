@@ -18,7 +18,7 @@ const COMPETITION_CATEGORIES = new Set(["snatchFamily", "cleanJerkFamily"]);
 // Cara's bar weight, used to convert a total working weight into per-side
 // plate math. Adjust here if she switches to a different bar.
 const BAR_WEIGHT = { kg: 15, lb: 33 };
-const WORK_SET_COUNT = 3;
+const WORK_SET_COUNT = 5;
 
 const HOUR_MS = 3600 * 1000;
 
@@ -50,6 +50,29 @@ function roundToIncrement(value, increment) {
 function perSideWeight(totalWeight, unit) {
   const barWeight = BAR_WEIGHT[unit] ?? BAR_WEIGHT.kg;
   return Math.max(0, (totalWeight - barWeight) / 2);
+}
+
+// Reps taper down as % climbs — standard percentage-based programming
+// convention (heavier top sets are lower-rep). Applied uniformly across the
+// warm-up ramp and the work sets so a single rule governs the whole
+// progression rather than every step defaulting to the same rep count.
+export function repsForPercent(percent) {
+  if (percent < 0.7) return 5;
+  if (percent < 0.8) return 4;
+  if (percent < 0.85) return 3;
+  if (percent < 0.9) return 2;
+  return 1;
+}
+
+// One consistent text formatter for a set step, reused by the warm-up
+// card's condensed build-up summary and available to the UI layer.
+export function formatSetLabel(set) {
+  if (set.phase === "bar") {
+    return set.weight != null ? `Bar x${set.reps} (${set.weight} ${set.unit})` : `Bar x${set.reps}`;
+  }
+  const pct = `${Math.round(set.percent * 100)}%`;
+  if (set.weight == null) return `${pct} x${set.reps}`;
+  return `${set.weight} ${set.unit} (${set.perSide} ${set.unit}/side) x${set.reps} — ${pct}`;
 }
 
 // MARK: - Rule 7: session length -> block count
@@ -152,30 +175,28 @@ export function buildPrimaryLift(template, history, maxes, testMax) {
   const max = maxes.find((m) => m.liftName.toLowerCase() === template.name.toLowerCase());
   const increment = max ? (max.unit === "kg" ? 2.5 : 5) : 5;
 
-  const buildSets = ["Bar x5", ...template.buildPattern.map((pct) => {
-    if (max) {
-      const weight = roundToIncrement(max.oneRepMax * pct, increment);
-      const perSide = perSideWeight(weight, max.unit);
-      return `${weight} ${max.unit} (${perSide} ${max.unit}/side) — ${Math.round(pct * 100)}%`;
-    }
-    return `${Math.round(pct * 100)}%`;
-  })];
+  function buildStep(percent, phase) {
+    const reps = repsForPercent(percent);
+    if (!max) return { phase, percent, reps, weight: null, perSide: null, unit: null };
+    const weight = roundToIncrement(max.oneRepMax * percent, increment);
+    return { phase, percent, reps, weight, perSide: perSideWeight(weight, max.unit), unit: max.unit };
+  }
 
-  // 3 ascending work sets across the target percent range (was 5 — too many
-  // per Cara's feedback), each resolved to an actual weight + per-side plate
-  // math once a max is on file, not just a percent.
-  const setPercents =
+  // One continuous ascending progression — empty bar, then the warm-up
+  // ramp, then the work sets — rather than two separate lists. Reps taper
+  // down at each step per repsForPercent; work sets span the full target
+  // percent range (5 sets by default, matching how the class actually
+  // programs it — "5 sets" was never the issue, some reps at the top were).
+  const barStep = { phase: "bar", percent: 0, reps: repsForPercent(0), weight: max ? BAR_WEIGHT[max.unit] : null, perSide: 0, unit: max ? max.unit : null };
+  const rampSteps = template.buildPattern.map((pct) => buildStep(pct, "warmup"));
+  const workPercents =
     WORK_SET_COUNT === 1
       ? [upper]
       : Array.from({ length: WORK_SET_COUNT }, (_, i) => lower + ((upper - lower) * i) / (WORK_SET_COUNT - 1));
+  const workSteps = workPercents.map((pct) => buildStep(pct, "work"));
 
-  const workSets = setPercents.map((percent) => {
-    if (!max) return { percent, weight: null, perSide: null, unit: null };
-    const weight = roundToIncrement(max.oneRepMax * percent, increment);
-    return { percent, weight, perSide: perSideWeight(weight, max.unit), unit: max.unit };
-  });
-
-  const estimatedWorkingWeight = workSets[workSets.length - 1].weight;
+  const sets = [barStep, ...rampSteps, ...workSteps];
+  const estimatedWorkingWeight = workSteps[workSteps.length - 1].weight;
 
   const workSetsDescription = testMax
     ? "Work up in small jumps to a new 1RM attempt"
@@ -184,8 +205,7 @@ export function buildPrimaryLift(template, history, maxes, testMax) {
   return {
     liftName: template.name,
     category: template.category,
-    buildSets,
-    workSets,
+    sets,
     workSetsDescription,
     targetPercentRange: [lower, upper],
     estimatedWorkingWeight,
@@ -218,7 +238,12 @@ export function buildWarmup(primaryLifts, minutes) {
   const liftSpecificPrep = primaryLifts.map((lift) => ({
     liftName: lift.liftName,
     requiredPrepDrills: lift.requiredPrepDrills.map((d) => `${d} x5`),
-    buildUp: `${lift.liftName} build-up: ` + lift.buildSets.join(" -> "),
+    buildUp:
+      `${lift.liftName} build-up: ` +
+      lift.sets
+        .filter((s) => s.phase !== "work")
+        .map((s) => formatSetLabel(s))
+        .join(" -> "),
   }));
 
   const requiredDrillCount = liftSpecificPrep.reduce((sum, group) => sum + group.requiredPrepDrills.length, 0);

@@ -9,6 +9,8 @@ import {
   buildWarmup,
   buildAccessoryRound,
   generate,
+  repsForPercent,
+  formatSetLabel,
 } from "./generator.js";
 import { familyForLiftName, SQUAT_VARIANTS, ACCESSORY_MOVES, CLEAN_CUE, JERK_CUE } from "./precedentLibrary.js";
 
@@ -228,40 +230,51 @@ test("estimated weight is computed once a max is on file", () => {
   assert.ok(lift.estimatedWorkingWeight != null);
 });
 
-// Work sets: 3 (not 5), each resolved to weight + per-side plate math once a max exists
+// Work sets: 5 (Cara confirmed more than 3 is fine — the real complaint was
+// reps within sets, not the number of sets), one unified list per lift, reps
+// tapering down at higher %, resolved to weight + per-side plate math once a
+// max exists.
 
-test("work sets description says 3 sets, not 5", () => {
+test("work sets description says 5 sets", () => {
   const template = familyForLiftName("Snatch");
   const lift = buildPrimaryLift(template, [], [], false);
-  assert.match(lift.workSetsDescription, /^3 sets building to/);
+  assert.match(lift.workSetsDescription, /^5 sets building to/);
 });
 
-test("3 ascending work sets are produced regardless of max presence", () => {
-  const template = familyForLiftName("Snatch");
-  const withoutMax = buildPrimaryLift(template, [], [], false);
-  assert.equal(withoutMax.workSets.length, 3);
-  assert.ok(withoutMax.workSets.every((s) => s.weight === null && s.perSide === null));
-  assert.ok(withoutMax.workSets[0].percent < withoutMax.workSets[2].percent);
-
-  const max = { liftName: "Snatch", oneRepMax: 60, unit: "kg" };
-  const withMax = buildPrimaryLift(template, [], [max], false);
-  assert.equal(withMax.workSets.length, 3);
-  assert.ok(withMax.workSets.every((s) => s.weight != null && s.perSide != null));
+test("reps taper down as percent climbs", () => {
+  assert.equal(repsForPercent(0.5), 5);
+  assert.equal(repsForPercent(0.65), 5);
+  assert.equal(repsForPercent(0.72), 4);
+  assert.equal(repsForPercent(0.82), 3);
+  assert.equal(repsForPercent(0.87), 2);
+  assert.equal(repsForPercent(0.95), 1);
 });
 
-test("work set weight and per-side plate math are computed correctly", () => {
+test("each lift produces one unified ascending list: bar, then ramp, then 5 work sets", () => {
+  const template = familyForLiftName("Snatch"); // buildPattern has 4 ramp steps
+  const lift = buildPrimaryLift(template, [], [], false);
+
+  assert.equal(lift.sets[0].phase, "bar");
+  assert.equal(lift.sets.filter((s) => s.phase === "warmup").length, template.buildPattern.length);
+  assert.equal(lift.sets.filter((s) => s.phase === "work").length, 5);
+  assert.equal(lift.sets.length, 1 + template.buildPattern.length + 5);
+
+  // Work-set reps are non-increasing across the ascending percent ladder.
+  const workReps = lift.sets.filter((s) => s.phase === "work").map((s) => s.reps);
+  for (let i = 1; i < workReps.length; i++) {
+    assert.ok(workReps[i] <= workReps[i - 1], `reps rose from ${workReps[i - 1]} to ${workReps[i]}`);
+  }
+});
+
+test("work set weight, reps, and per-side plate math are computed correctly", () => {
   const template = SQUAT_VARIANTS.find((l) => l.name === "Back Squat"); // range [0.75, 0.9]
   const max = { liftName: "Back Squat", oneRepMax: 100, unit: "kg" };
   const lift = buildPrimaryLift(template, [], [max], false);
+  const workSets = lift.sets.filter((s) => s.phase === "work");
 
-  assert.deepEqual(
-    lift.workSets.map((s) => s.weight),
-    [75, 82.5, 90]
-  );
-  assert.deepEqual(
-    lift.workSets.map((s) => s.perSide),
-    [30, 33.75, 37.5]
-  );
+  assert.deepEqual(workSets.map((s) => s.weight), [75, 80, 82.5, 87.5, 90]);
+  assert.deepEqual(workSets.map((s) => s.reps), [4, 4, 3, 2, 1]);
+  assert.deepEqual(workSets.map((s) => s.perSide), [30, 32.5, 33.75, 36.25, 37.5]);
   // Top (last) work set is the reported estimated working weight.
   assert.equal(lift.estimatedWorkingWeight, 90);
 });
@@ -270,17 +283,25 @@ test("per-side math never goes negative when the target weight is under an empty
   const template = SQUAT_VARIANTS.find((l) => l.name === "Overhead Squat"); // range [0.5, 0.7], light
   const max = { liftName: "Overhead Squat", oneRepMax: 20, unit: "kg" }; // very light max
   const lift = buildPrimaryLift(template, [], [max], false);
-  assert.ok(lift.workSets.every((s) => s.perSide >= 0));
+  assert.ok(lift.sets.every((s) => s.perSide == null || s.perSide >= 0));
 });
 
-test("build-up ramp shows per-side plate math once a max is on file", () => {
+test("ramp and bar steps show per-side plate math once a max is on file, work sets do not leak into the warm-up build-up", () => {
   const template = familyForLiftName("Back Squat");
   const max = { liftName: "Back Squat", oneRepMax: 100, unit: "kg" };
   const lift = buildPrimaryLift(template, [], [max], false);
-  assert.ok(lift.buildSets.some((s) => s.includes("/side")));
+  const nonWork = lift.sets.filter((s) => s.phase !== "work");
+  assert.ok(nonWork.every((s) => s.weight != null));
 
   const liftNoMax = buildPrimaryLift(template, [], [], false);
-  assert.ok(liftNoMax.buildSets.every((s) => !s.includes("/side")));
+  assert.ok(liftNoMax.sets.every((s) => s.weight === null));
+});
+
+test("Bar step always shows 5 reps regardless of the day's target percent range", () => {
+  const template = familyForLiftName("Snatch");
+  const lift = buildPrimaryLift(template, [], [], false);
+  assert.equal(lift.sets[0].reps, 5);
+  assert.equal(formatSetLabel(lift.sets[0]), "Bar x5");
 });
 
 // Manual "which lift(s) today" override

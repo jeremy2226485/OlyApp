@@ -1,13 +1,18 @@
 import { getSessions } from "../storage.js";
+import { getCurrentSession } from "../state.js";
 import { el, formatDate } from "../ui.js";
 
 export function render(root) {
   const sessions = getSessions();
   const recent = sessions.slice(0, 3);
+  const current = getCurrentSession();
 
   root.appendChild(
     el("section", { class: "screen" }, [
-      el("a", { href: "#/new", class: "btn btn-primary btn-block" }, "+ New Session"),
+      current ? continueWorkoutCard(current) : el("a", { href: "#/new", class: "btn btn-primary btn-block" }, "+ New Session"),
+      current && current.status !== "started"
+        ? el("a", { href: "#/new", class: "btn-link" }, "Discard and generate a different session")
+        : null,
       recent.length
         ? el("div", { class: "card-list" }, [
             el("h3", { class: "section-label" }, "Recent Sessions"),
@@ -15,6 +20,15 @@ export function render(root) {
           ])
         : el("p", { class: "empty-state" }, "No sessions logged yet. Generate your first one above."),
     ])
+  );
+}
+
+function continueWorkoutCard(current) {
+  const isStarted = current.status === "started";
+  return el(
+    "a",
+    { href: "#/session", class: "btn btn-primary btn-block" },
+    isStarted ? "▶ Continue Workout" : "Review Generated Session"
   );
 }
 

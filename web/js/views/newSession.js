@@ -1,6 +1,6 @@
 import { getSessions, getMaxes } from "../storage.js";
 import { generate } from "../generator.js";
-import { setCurrentSession } from "../state.js";
+import { getCurrentSession, setCurrentSession } from "../state.js";
 import { ALL_PRIMARY_LIFTS, ACCESSORY_MOVES } from "../precedentLibrary.js";
 import { el } from "../ui.js";
 
@@ -15,6 +15,23 @@ const LIFT_CATEGORY_LABELS = {
 };
 
 export function render(root) {
+  const current = getCurrentSession();
+  if (current && current.status === "started") {
+    root.appendChild(
+      el("section", { class: "screen" }, [
+        el("a", { href: "#/", class: "back-link" }, "‹ Home"),
+        el("h2", {}, "New Session"),
+        el(
+          "p",
+          { class: "empty-state" },
+          "You have a workout in progress. Complete or discard it before generating a new one."
+        ),
+        el("a", { href: "#/session", class: "btn btn-primary btn-block" }, "▶ Continue Workout"),
+      ])
+    );
+    return;
+  }
+
   let length = 90;
   const specifiedLifts = new Set();
   const avoidSet = new Set();
@@ -94,7 +111,7 @@ export function render(root) {
           avoidMovements: avoidSet,
           specifiedLifts: [...specifiedLifts],
         });
-        setCurrentSession(session);
+        setCurrentSession({ ...session, status: "draft" });
         location.hash = "#/session";
       },
     },
