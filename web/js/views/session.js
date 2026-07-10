@@ -33,9 +33,9 @@ export function renderSession(root) {
   const session = getCurrentSession();
   if (!session) {
     root.append(
-      h("h1", { class: "tag-title tag-title-sm" }, "NO SESSION"),
+      h("h1", { class: "tag-title tag-title-sm" }, "NO SESH"),
       h("p", { class: "muted empty" }, "Nothing on the bar yet."),
-      h("a", { class: "btn btn-primary btn-big", href: "#/generate" }, "NEW SESSION")
+      h("a", { class: "btn btn-primary btn-big", href: "#/generate" }, "NEW SESH")
     );
     return;
   }

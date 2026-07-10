@@ -1,4 +1,4 @@
-// Home: New Session CTA, resume-in-progress card, freshness stats, recent log.
+// Home: New Sesh CTA, resume-in-progress card, freshness stats, recent log.
 
 import { h, add } from "../lib/dom.js";
 import { getSessions, getCurrentSession } from "../lib/storage.js";
@@ -44,7 +44,7 @@ export function renderHome(root) {
         )
       : null,
 
-    h("a", { class: "btn btn-primary btn-big", href: "#/generate" }, "NEW SESSION"),
+    h("a", { class: "btn btn-primary btn-big", href: "#/generate" }, "NEW SESH"),
     h("p", { class: "hint-center" }, `Up next by rotation: ${intentLabel} · ${familyLabel}`),
 
     h("div", { class: "stat-row" },
@@ -53,9 +53,9 @@ export function renderHome(root) {
       h("div", { class: "stat" }, h("b", {}, squat == null ? "—" : `${squat}d`), h("span", {}, "since squats"))
     ),
 
-    h("h3", { class: "section-label" }, "Recent sessions"),
+    h("h3", { class: "section-label" }, "Recent seshes"),
     sessions.length === 0
-      ? h("p", { class: "muted empty" }, "Nothing logged yet. Generate your first session and get under the bar.")
+      ? h("p", { class: "muted empty" }, "Nothing logged yet. Generate your first sesh and get under the bar.")
       : sessions.slice(0, 3).map((s) =>
           h("div", { class: "card card-mini" },
             h("div", { class: "card-mini-head" },

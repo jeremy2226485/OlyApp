@@ -1,4 +1,4 @@
-// New Session: length, day type, family, optional main-lift pick, avoid list.
+// New Sesh: length, day type, family, optional main-lift pick, avoid list.
 
 import { h, add } from "../lib/dom.js";
 import { getSessions, getMaxValues, getSettings, setCurrentSession, getCurrentSession } from "../lib/storage.js";
@@ -156,12 +156,12 @@ export function renderGenerate(root) {
   const inProgress = getCurrentSession()?.status === "started";
 
   add(root,
-    h("h1", { class: "tag-title tag-title-sm" }, "NEW SESSION"),
+    h("h1", { class: "tag-title tag-title-sm" }, "NEW SESH"),
     inProgress
       ? h("p", { class: "callout callout-warn" }, "A workout is already in progress — generating a new one will replace it. ", h("a", { href: "#/session" }, "Resume instead"))
       : null,
     h("div", { class: "card" },
-      h("label", { class: "field-label" }, "Session length (minutes)"),
+      h("label", { class: "field-label" }, "Sesh length (minutes)"),
       minutesInput,
       presets
     ),

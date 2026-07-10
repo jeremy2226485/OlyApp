@@ -1,4 +1,4 @@
-// History: logged sessions with per-block top %s and make/miss counts.
+// History: logged seshes with per-block top %s and make/miss counts.
 
 import { h } from "../lib/dom.js";
 import { getSessions, deleteSession } from "../lib/storage.js";
@@ -14,7 +14,7 @@ export function renderHistory(root) {
   root.append(h("h1", { class: "tag-title tag-title-sm" }, "HISTORY"));
 
   if (!sessions.length) {
-    root.append(h("p", { class: "muted empty" }, "No sessions logged yet."));
+    root.append(h("p", { class: "muted empty" }, "No seshes logged yet."));
     return;
   }
 
@@ -41,7 +41,7 @@ export function renderHistory(root) {
         h("button", {
           class: "btn btn-ghost btn-danger btn-small",
           onClick: () => {
-            if (!confirm("Delete this logged session?")) return;
+            if (!confirm("Delete this logged sesh?")) return;
             deleteSession(s.id);
             syncNow();
             renderHistory(root.replaceChildren() ?? root);
