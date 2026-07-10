@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { generateSession, chooseIntent, chooseFamily, missCapFor, toLoggedSession } from "./planner.js";
+import {
+  generateSession,
+  chooseIntent,
+  chooseFamily,
+  missCapFor,
+  toLoggedSession,
+  rotateAccessoryMove,
+} from "./planner.js";
 
 const rng = () => 0.01; // deterministic picks
 
@@ -160,6 +167,39 @@ test("clean/jerk prep drills and cues ride along on the block", () => {
   assert.ok(comp.cues.length >= 2);
   assert.ok(session.warmup.prepGroups.some((g) => g.drills.some((d) => /tall muscle clean/i.test(d))));
   assert.ok(session.warmup.prepGroups.some((g) => g.drills.some((d) => /split/i.test(d))));
+});
+
+test("rotateAccessoryMove cycles same-category alternates, skipping used and avoided", () => {
+  const session = generateSession(90, [], MAXES, {}, {}, rng);
+  const idx = 0;
+  const before = session.accessory.moves[idx];
+  const others = new Set(session.accessory.moves.filter((_, i) => i !== idx).map((m) => m.name));
+
+  rotateAccessoryMove(session, idx);
+  const after = session.accessory.moves[idx];
+  assert.notEqual(after.name, before.name, "move changes");
+  assert.equal(after.category, before.category, "stays in the same category");
+  assert.ok(after.rx, "prescription carried over");
+  assert.ok(!others.has(after.name), "doesn't duplicate another move in the round");
+
+  // Avoided alternates are skipped.
+  const avoided = new Set([session.accessory.moves[idx].name]);
+  rotateAccessoryMove(session, idx, avoided);
+  assert.ok(!avoided.has(session.accessory.moves[idx].name));
+
+  // Cycling far enough comes back around within the category without ever
+  // duplicating a move currently in the round.
+  for (let i = 0; i < 20; i++) {
+    rotateAccessoryMove(session, idx);
+    const names = session.accessory.moves.map((m) => m.name);
+    assert.equal(new Set(names).size, names.length, "no duplicates in the round");
+    assert.equal(session.accessory.moves[idx].category, before.category);
+  }
+
+  // Out-of-range index is a no-op, not a crash.
+  const snapshot = JSON.stringify(session.accessory.moves);
+  rotateAccessoryMove(session, 99);
+  assert.equal(JSON.stringify(session.accessory.moves), snapshot);
 });
 
 test("toLoggedSession round-trips the fields the planner reads back", () => {

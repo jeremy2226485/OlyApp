@@ -347,6 +347,21 @@ body {
 .acc-list { list-style: none; margin: 8px 0 0; padding: 0; }
 .acc-list li { padding: 7px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
 .acc-list li:last-child { border-bottom: none; }
+.acc-row { display: flex; align-items: center; gap: 8px; }
+.acc-text { flex: 1; min-width: 0; }
+.acc-rotate {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1.5px solid var(--panel-edge);
+  background: var(--wall);
+  color: var(--cyan);
+  font-size: 17px;
+  line-height: 1;
+  cursor: pointer;
+}
+.acc-rotate:active { border-color: var(--cyan); transform: rotate(90deg); }
 
 .why { margin-top: 10px; font-size: 13px; color: var(--muted); }
 .why summary { cursor: pointer; color: var(--cyan); font-weight: 700; }

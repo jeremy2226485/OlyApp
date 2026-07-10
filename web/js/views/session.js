@@ -13,7 +13,7 @@ import {
   getSettings,
   setMax,
 } from "../lib/storage.js";
-import { generateSession, toLoggedSession } from "../engine/planner.js";
+import { generateSession, toLoggedSession, rotateAccessoryMove } from "../engine/planner.js";
 import { attachWeights } from "../engine/schemes.js";
 import { loadForPercent, resolveMax, formatWeight } from "../engine/weights.js";
 import { MAX_DEFINITIONS } from "../data/exercises.js";
@@ -84,11 +84,23 @@ function paint(root, session) {
       h("p", { class: "muted small" },
         `${session.accessory.rounds} rounds · ${session.accessory.emphasis}-emphasis · core folded in`),
       h("ul", { class: "acc-list" },
-        session.accessory.moves.map((m) =>
-          h("li", {},
-            h("b", {}, m.name),
-            h("span", { class: "muted" }, ` — ${m.rx}`),
-            m.category.startsWith("core") ? h("span", { class: "chip chip-core" }, "core") : null
+        session.accessory.moves.map((m, i) =>
+          h("li", { class: "acc-row" },
+            h("span", { class: "acc-text" },
+              h("b", {}, m.name),
+              h("span", { class: "muted" }, ` — ${m.rx}`),
+              m.category.startsWith("core") ? h("span", { class: "chip chip-core" }, "core") : null
+            ),
+            h("button", {
+              class: "acc-rotate",
+              title: "Swap for an alternate",
+              "aria-label": `Swap ${m.name} for an alternate`,
+              onClick: () => {
+                rotateAccessoryMove(session, i, new Set(session.generateOptions?.avoid ?? []));
+                persist(session);
+                repaint(root, session);
+              },
+            }, "⟳")
           )
         )
       )

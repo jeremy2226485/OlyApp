@@ -190,6 +190,25 @@ export function buildAccessory(history, dayIntent, minutes, avoid, rng) {
   return { rounds, emphasis, moves };
 }
 
+// Swap one accessory move for the next alternate in the same category,
+// cycling deterministically and skipping moves already in the round and
+// anything on today's avoid list. Mutates and returns the session.
+export function rotateAccessoryMove(session, index, avoid = new Set()) {
+  const current = session.accessory.moves[index];
+  if (!current) return session;
+  const used = new Set(session.accessory.moves.map((m) => m.name));
+  const pool = ACCESSORIES.filter((a) => a.category === current.category && !avoid.has(a.name));
+  const at = pool.findIndex((a) => a.name === current.name);
+  for (let step = 1; step <= pool.length; step++) {
+    const cand = pool[(at + step + pool.length) % pool.length];
+    if (cand.name !== current.name && !used.has(cand.name)) {
+      session.accessory.moves[index] = { name: cand.name, rx: cand.rx, category: cand.category };
+      break;
+    }
+  }
+  return session;
+}
+
 // ── Warm-up ───────────────────────────────────────────────────────────
 
 const GENERAL_PREP = [

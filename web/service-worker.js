@@ -3,7 +3,7 @@
 // serve from cache immediately if available, refresh the cache in the
 // background, fall back to cache if the network fails outright.
 
-const CACHE_NAME = "olyapp-v2";
+const CACHE_NAME = "olyapp-v3";
 
 self.addEventListener("install", () => {
   self.skipWaiting();
