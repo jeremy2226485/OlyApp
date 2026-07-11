@@ -333,6 +333,7 @@ export function toLoggedSession(session, results = {}) {
     minutes: session.minutes,
     family: session.family,
     intent: session.intent,
+    unit: session.settings?.unit ?? null,
     blocks: session.blocks.map((b) => ({
       exerciseId: b.exerciseId,
       name: b.name,
@@ -349,8 +350,9 @@ export function toLoggedSession(session, results = {}) {
       })),
     })),
     accessory: {
+      rounds: session.accessory.rounds,
       emphasis: session.accessory.emphasis,
-      moves: session.accessory.moves.map((m) => ({ name: m.name, category: m.category })),
+      moves: session.accessory.moves.map((m) => ({ name: m.name, category: m.category, rx: m.rx, done: !!m.done })),
     },
   };
 }

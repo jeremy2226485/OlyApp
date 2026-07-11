@@ -89,12 +89,7 @@ function paint(root, session) {
         `${session.accessory.rounds} rounds · ${session.accessory.emphasis}-emphasis · core folded in`),
       h("ul", { class: "acc-list" },
         session.accessory.moves.map((m, i) =>
-          h("li", { class: "acc-row" },
-            h("span", { class: "acc-text" },
-              h("b", {}, m.name),
-              h("span", { class: "muted" }, ` — ${m.rx}`),
-              m.category.startsWith("core") ? h("span", { class: "chip chip-core" }, "core") : null
-            ),
+          h("li", { class: `acc-row${m.done ? " done" : ""}` },
             h("button", {
               class: "acc-rotate",
               title: "Swap for an alternate",
@@ -104,7 +99,23 @@ function paint(root, session) {
                 persist(session);
                 repaint(root, session);
               },
-            }, "⟳")
+            }, "⟳"),
+            h("span", { class: "acc-text" },
+              h("b", {}, m.name),
+              h("span", { class: "muted" }, ` — ${m.rx}`),
+              m.category.startsWith("core") ? h("span", { class: "chip chip-core" }, "core") : null
+            ),
+            h("button", {
+              class: "set-check",
+              "aria-label": `Mark ${m.name} complete`,
+              onClick: (e) => {
+                if (!started) return;
+                m.done = !m.done;
+                persist(session);
+                e.target.textContent = m.done ? "✓" : "";
+                e.target.closest(".acc-row").classList.toggle("done", m.done);
+              },
+            }, m.done ? "✓" : "")
           )
         )
       )

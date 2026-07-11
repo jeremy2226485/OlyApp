@@ -349,6 +349,8 @@ body {
 .acc-list li { padding: 7px 0; border-bottom: 1px solid rgba(255, 255, 255, 0.05); }
 .acc-list li:last-child { border-bottom: none; }
 .acc-row { display: flex; align-items: center; gap: 8px; }
+.acc-row.done .acc-text { opacity: 0.6; }
+.acc-row.done .set-check { border-color: var(--green); }
 .acc-text { flex: 1; min-width: 0; }
 .acc-rotate {
   flex: none;
@@ -375,6 +377,28 @@ body {
   resize: vertical;
   min-height: 44px;
 }
+
+/* ── history detail ── */
+.hist-head {
+  width: 100%;
+  background: none;
+  border: none;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.hist-head-right { display: flex; align-items: center; gap: 8px; }
+.chevron { color: var(--cyan); font-size: 14px; }
+.sesh-detail { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--panel-edge); }
+.hist-block { margin: 8px 0; }
+.hist-sets { list-style: none; margin: 4px 0 0; padding: 0; }
+.hist-set { display: flex; align-items: baseline; gap: 8px; padding: 3px 0; font-size: 14px; }
+.hist-icon { width: 16px; text-align: center; font-weight: 900; flex: none; }
+.hist-icon.made { color: var(--green); }
+.hist-icon.missed { color: var(--red); }
+.hist-icon.skipped { color: var(--muted); }
 
 /* ── tab bar ── */
 .tabbar {

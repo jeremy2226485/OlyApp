@@ -203,11 +203,17 @@ test("rotateAccessoryMove cycles same-category alternates, skipping used and avo
 });
 
 test("toLoggedSession round-trips the fields the planner reads back", () => {
-  const session = generateSession(90, [], MAXES, {}, {}, rng);
+  const session = generateSession(90, [], MAXES, { unit: "kg" }, {}, rng);
   session.blocks[0].sets.forEach((s) => (s.done = true));
+  session.accessory.moves[0].done = true;
   const logged = toLoggedSession(session);
   assert.equal(logged.family, session.family);
   assert.equal(logged.intent, session.intent);
+  assert.equal(logged.unit, "kg");
   assert.equal(logged.blocks[0].topPct, session.blocks[0].topPct);
   assert.ok(logged.blocks[0].setResults.every((r) => typeof r.done === "boolean"));
+  assert.equal(logged.accessory.moves[0].done, true);
+  assert.equal(logged.accessory.moves[1].done, false);
+  assert.ok(logged.accessory.moves.every((m) => m.rx), "prescriptions preserved in the log");
+  assert.equal(logged.accessory.rounds, session.accessory.rounds);
 });
