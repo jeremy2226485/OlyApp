@@ -17,6 +17,15 @@ const routes = {
   "#/settings": renderSettings,
 };
 
+function setMenuOpen(open) {
+  const menu = document.getElementById("menu");
+  const btn = document.getElementById("menu-btn");
+  if (!menu || !btn) return;
+  menu.hidden = !open;
+  btn.setAttribute("aria-expanded", String(open));
+  btn.textContent = open ? "✕" : "☰";
+}
+
 function render() {
   const view = routes[location.hash] ?? renderHome;
   const app = clear(document.getElementById("app"));
@@ -25,8 +34,22 @@ function render() {
     const active = link.getAttribute("href") === (location.hash || "#/");
     link.classList.toggle("active", active);
   }
+  setMenuOpen(false); // navigating closes the menu
   window.scrollTo(0, 0);
 }
+
+document.addEventListener("click", (e) => {
+  const btn = document.getElementById("menu-btn");
+  const menu = document.getElementById("menu");
+  if (!btn || !menu) return;
+  if (btn.contains(e.target)) {
+    setMenuOpen(menu.hidden);
+  } else if (e.target.closest("#menu a[data-nav]")) {
+    setMenuOpen(false); // picking a link closes, even the already-active one
+  } else if (!menu.hidden && !menu.contains(e.target)) {
+    setMenuOpen(false); // tap outside dismisses
+  }
+});
 
 window.addEventListener("hashchange", render);
 window.addEventListener("DOMContentLoaded", render);

@@ -34,7 +34,7 @@ body {
   color: var(--ink);
   font-family: var(--body-font);
   line-height: 1.45;
-  padding-bottom: calc(72px + env(safe-area-inset-bottom));
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
 }
 
 #app {
@@ -47,15 +47,28 @@ body {
 .topbar {
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: 20;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
   background: rgba(16, 16, 20, 0.82);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--panel-edge);
 }
+.menu-btn {
+  width: 44px;
+  height: 40px;
+  font-size: 22px;
+  line-height: 1;
+  border-radius: 10px;
+  border: 1.5px solid var(--panel-edge);
+  background: var(--panel);
+  color: var(--volt);
+  cursor: pointer;
+}
+.menu-btn[aria-expanded="true"] { border-color: var(--pink); color: var(--pink); }
 .topbar-title {
   font-family: var(--tag-font);
   font-size: 22px;
@@ -63,7 +76,10 @@ body {
   color: var(--volt);
   text-shadow: 2px 2px 0 var(--pink), -1px -1px 0 rgba(41, 224, 255, 0.6);
   transform: rotate(-2deg);
+  text-decoration: none;
+  padding: 4px 6px 4px 0;
 }
+.topbar-title:active { opacity: 0.7; }
 
 /* ── tag-style headings ── */
 .tag-title {
@@ -400,33 +416,31 @@ body {
 .hist-icon.missed { color: var(--red); }
 .hist-icon.skipped { color: var(--muted); }
 
-/* ── tab bar ── */
-.tabbar {
+/* ── hamburger menu ── */
+.menu {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-around;
-  background: rgba(16, 16, 20, 0.92);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border-top: 1px solid var(--panel-edge);
-  padding: 8px 0 calc(8px + env(safe-area-inset-bottom));
-  z-index: 10;
+  top: calc(58px + env(safe-area-inset-top));
+  right: 12px;
+  z-index: 30;
+  min-width: 190px;
+  background: linear-gradient(160deg, var(--panel), var(--wall-2));
+  border: 1.5px solid var(--panel-edge);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55), 3px 3px 0 rgba(255, 45, 149, 0.55);
+  padding: 6px;
 }
-.tabbar-link {
+.menu-link {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 2px;
-  font-size: 11px;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  font-size: 16px;
   font-weight: 700;
   letter-spacing: 0.5px;
-  color: var(--muted);
+  color: var(--ink);
   text-decoration: none;
-  min-width: 76px;
 }
-.tabbar-icon { font-size: 20px; }
-.tabbar-link.active { color: var(--volt); }
-.tabbar-link.active .tabbar-icon { filter: drop-shadow(0 0 6px rgba(245, 255, 60, 0.7)); }
+.menu-link:active { background: rgba(255, 255, 255, 0.06); }
+.menu-icon { font-size: 18px; }
+.menu-link.active { color: var(--volt); background: rgba(245, 255, 60, 0.07); }

@@ -19,25 +19,17 @@
 </head>
 <body>
   <header class="topbar">
-    <span class="topbar-title">OLYAPP</span>
+    <a href="#/" class="topbar-title" aria-label="Home">OLYAPP</a>
+    <button id="menu-btn" class="menu-btn" aria-label="Menu" aria-expanded="false" aria-controls="menu">☰</button>
   </header>
 
-  <main id="app"></main>
-
-  <nav class="tabbar">
-    <a href="#/" data-nav class="tabbar-link">
-      <span class="tabbar-icon">🏋️</span>
-      <span>Home</span>
-    </a>
-    <a href="#/history" data-nav class="tabbar-link">
-      <span class="tabbar-icon">🗓</span>
-      <span>History</span>
-    </a>
-    <a href="#/settings" data-nav class="tabbar-link">
-      <span class="tabbar-icon">⚙️</span>
-      <span>Settings</span>
-    </a>
+  <nav id="menu" class="menu" hidden>
+    <a href="#/" data-nav class="menu-link"><span class="menu-icon">🏋️</span> Home</a>
+    <a href="#/history" data-nav class="menu-link"><span class="menu-icon">🗓</span> History</a>
+    <a href="#/settings" data-nav class="menu-link"><span class="menu-icon">⚙️</span> Settings</a>
   </nav>
+
+  <main id="app"></main>
 
   <script type="module" src="js/main.js"></script>
 </body>
