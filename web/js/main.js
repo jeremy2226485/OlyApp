@@ -27,12 +27,14 @@ function setMenuOpen(open) {
 }
 
 function render() {
-  const view = routes[location.hash] ?? renderHome;
+  // Route on the path part only — "#/history?open=<id>" still renders history,
+  // with the query left for the view to read (deep-linking a specific card).
+  const path = (location.hash || "#/").split("?")[0];
+  const view = routes[path] ?? renderHome;
   const app = clear(document.getElementById("app"));
   view(app);
   for (const link of document.querySelectorAll("[data-nav]")) {
-    const active = link.getAttribute("href") === (location.hash || "#/");
-    link.classList.toggle("active", active);
+    link.classList.toggle("active", link.getAttribute("href") === path);
   }
   setMenuOpen(false); // navigating closes the menu
   window.scrollTo(0, 0);

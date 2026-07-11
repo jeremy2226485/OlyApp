@@ -395,16 +395,9 @@ body {
 }
 
 /* ── history detail ── */
-.hist-head {
-  width: 100%;
-  background: none;
-  border: none;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
+.hist-card { cursor: pointer; }
+.card-link { display: block; text-decoration: none; color: inherit; }
+.card-link:active { border-color: var(--cyan); }
 .hist-head-right { display: flex; align-items: center; gap: 8px; }
 .chevron { color: var(--cyan); font-size: 14px; }
 .sesh-detail { margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--panel-edge); }

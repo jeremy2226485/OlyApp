@@ -38,7 +38,12 @@ function blockDetail(b, unit) {
   );
 }
 
-function sessionCard(root, s) {
+function hashParam(name) {
+  const query = location.hash.split("?")[1];
+  return query ? new URLSearchParams(query).get(name) : null;
+}
+
+function sessionCard(root, s, startExpanded) {
   const unit = s.unit ?? getSettings().unit;
   const summaryLines = (s.blocks ?? []).map((b) => {
     const work = (b.setResults ?? []).filter((r) => r.phase !== "warmup");
@@ -82,14 +87,14 @@ function sessionCard(root, s) {
       },
     }, "Delete this sesh")
   );
-  detail.hidden = true;
-
   const chevron = h("span", { class: "chevron" }, "▸");
-  const head = h("button", { class: "card-mini-head hist-head",
-    onClick: () => {
-      detail.hidden = !detail.hidden;
-      chevron.textContent = detail.hidden ? "▸" : "▾";
-    } },
+  function setExpanded(open) {
+    detail.hidden = !open;
+    chevron.textContent = open ? "▾" : "▸";
+  }
+  setExpanded(!!startExpanded);
+
+  const head = h("div", { class: "card-mini-head hist-head" },
     h("b", {}, `${fmtDate(s.date)} · ${s.family === "snatch" ? "Snatch day" : "Clean & jerk day"}`),
     h("span", { class: "hist-head-right" },
       h("span", { class: `chip chip-${s.intent}` }, s.intent),
@@ -97,7 +102,15 @@ function sessionCard(root, s) {
     )
   );
 
-  return add(h("div", { class: "card" }),
+  // The whole card toggles; the chevron is just an indicator. Real controls
+  // (delete, links) handle themselves, and taps inside the expanded record
+  // don't collapse it out from under a reader — close from the summary area.
+  return add(h("div", { class: "card hist-card",
+    onClick: (e) => {
+      if (e.target.closest("button, a, input, textarea")) return;
+      if (!detail.hidden && e.target.closest(".sesh-detail")) return;
+      setExpanded(detail.hidden);
+    } }),
     head,
     h("ul", { class: "plain-list" }, summaryLines),
     h("p", { class: "muted small" }, `${s.minutes} min · ${accSummary}`),
@@ -115,7 +128,15 @@ export function renderHistory(root) {
     return;
   }
 
+  const openId = hashParam("open");
+  let openCard = null;
   for (const s of sessions) {
-    root.append(sessionCard(root, s));
+    const card = sessionCard(root, s, s.id === openId);
+    root.append(card);
+    if (s.id === openId) openCard = card;
+  }
+  if (openCard) {
+    // After the router's scroll-to-top settles, bring the deep-linked card up.
+    setTimeout(() => openCard.scrollIntoView({ block: "start", behavior: "instant" }), 0);
   }
 }

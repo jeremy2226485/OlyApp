@@ -57,7 +57,7 @@ export function renderHome(root) {
     sessions.length === 0
       ? h("p", { class: "muted empty" }, "Nothing logged yet. Generate your first sesh and get under the bar.")
       : sessions.slice(0, 3).map((s) =>
-          h("div", { class: "card card-mini" },
+          h("a", { class: "card card-mini card-link", href: `#/history?open=${s.id}` },
             h("div", { class: "card-mini-head" },
               h("b", {}, s.family === "snatch" ? "Snatch day" : "Clean & jerk day"),
               h("span", { class: `chip chip-${s.intent}` }, s.intent)
