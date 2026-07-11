@@ -238,6 +238,7 @@ body {
 .seg-btn.active { border-color: var(--pink); color: var(--pink); background: rgba(255, 45, 149, 0.08); }
 
 .hint { color: var(--muted); font-size: 13px; margin: 8px 0 0; }
+.hint a { color: var(--cyan); }
 .hint-center { color: var(--muted); font-size: 13px; text-align: center; margin: 4px 0 14px; }
 .muted { color: var(--muted); }
 .small { font-size: 13px; }
@@ -366,6 +367,14 @@ body {
 .why { margin-top: 10px; font-size: 13px; color: var(--muted); }
 .why summary { cursor: pointer; color: var(--cyan); font-weight: 700; }
 .why p { margin: 6px 0 0; }
+.notes summary { color: var(--volt); }
+.notes-input {
+  margin-top: 8px;
+  font-family: var(--body-font);
+  font-size: 14px;
+  resize: vertical;
+  min-height: 44px;
+}
 
 /* ── tab bar ── */
 .tabbar {

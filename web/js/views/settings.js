@@ -1,6 +1,6 @@
 // Settings: units + bar weight + rounding, 1RM editor, gist sync, backup.
 
-import { h } from "../lib/dom.js";
+import { h, add } from "../lib/dom.js";
 import {
   getSettings,
   saveSettings,
@@ -9,7 +9,15 @@ import {
   exportAllData,
   importAllData,
 } from "../lib/storage.js";
-import { connectSync, disconnectSync, isSyncConfigured, syncNow, getSyncStatus } from "../lib/sync.js";
+import {
+  connectSync,
+  disconnectSync,
+  isSyncConfigured,
+  syncNow,
+  getSyncStatus,
+  getSyncConfig,
+} from "../lib/sync.js";
+import { getSessions } from "../lib/storage.js";
 import { MAX_DEFINITIONS } from "../data/exercises.js";
 
 export function renderSettings(root) {
@@ -88,8 +96,17 @@ export function renderSettings(root) {
   const status = getSyncStatus();
   const syncCard = h("div", { class: "card" }, h("h2", { class: "block-name" }, "Cloud sync"));
   if (isSyncConfigured()) {
-    syncCard.append(
-      h("p", { class: "hint" }, `Connected — private GitHub gist. Last: ${status.state}${status.message ? ` (${status.message})` : ""}`),
+    const sessionCount = getSessions().length;
+    const maxCount = Object.keys(getMaxes()).length;
+    const gistId = getSyncConfig()?.gistId;
+    add(syncCard,
+      h("p", { class: "hint" },
+        `Connected — private GitHub gist. Last: ${status.state}${status.message ? ` (${status.message})` : ""}${status.at ? ` at ${new Date(status.at).toLocaleTimeString()}` : ""}. Local data: ${sessionCount} sesh${sessionCount === 1 ? "" : "es"}, ${maxCount} max${maxCount === 1 ? "" : "es"}.`),
+      gistId
+        ? h("p", { class: "hint" },
+            h("a", { href: `https://gist.github.com/${gistId}`, target: "_blank", rel: "noopener" }, "Open backup gist ↗"),
+            " — the v2 app's data is the olyapp-data-v2.json file (the old app's olyapp-data.json is left untouched).")
+        : null,
       h("button", { class: "btn btn-small", onClick: async (e) => {
         e.target.textContent = "Syncing…";
         const r = await syncNow();

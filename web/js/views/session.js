@@ -12,13 +12,17 @@ import {
   getMaxValues,
   getSettings,
   setMax,
+  getFamilyNote,
+  setFamilyNote,
 } from "../lib/storage.js";
+import { syncNow } from "../lib/sync.js";
 import { generateSession, toLoggedSession, rotateAccessoryMove } from "../engine/planner.js";
 import { attachWeights } from "../engine/schemes.js";
 import { loadForPercent, resolveMax, formatWeight } from "../engine/weights.js";
 import { MAX_DEFINITIONS } from "../data/exercises.js";
 
 const INTENT_LABEL = { big: "BIG DAY", little: "TECH DAY", test: "MAX TEST" };
+const FAMILY_LABEL = { snatch: "Snatch", clean: "Clean", jerk: "Jerk", squat: "Squat" };
 
 function persist(session) {
   setCurrentSession(session);
@@ -178,6 +182,32 @@ function renderBlock(root, session, block, blockIdx, settings, started) {
   for (const cue of block.cues ?? []) {
     card.append(h("p", { class: "cue" }, "✎ ", cue));
   }
+
+  // Family notes: one free-text note per lift family, persisted across
+  // workouts — the same note appears on every lift in this family.
+  const famLabel = FAMILY_LABEL[block.family] ?? block.family;
+  const existingNote = getFamilyNote(block.family);
+  let noteTimer;
+  const noteArea = h("textarea", {
+    class: "input notes-input",
+    rows: "2",
+    placeholder: `Notes for all ${famLabel.toLowerCase()}-family lifts — sticks around next sesh`,
+    onInput: (e) => {
+      clearTimeout(noteTimer);
+      noteTimer = setTimeout(() => setFamilyNote(block.family, e.target.value), 500);
+    },
+    onChange: (e) => {
+      clearTimeout(noteTimer);
+      setFamilyNote(block.family, e.target.value);
+      syncNow();
+    },
+  }, existingNote);
+  card.append(
+    h("details", { class: "why notes", open: !!existingNote },
+      h("summary", {}, `✎ ${famLabel} notes`),
+      noteArea
+    )
+  );
 
   // Max status: missing -> inline entry; estimated -> badge.
   const maxDef = MAX_DEFINITIONS.find((d) => d.key === block.maxRef);

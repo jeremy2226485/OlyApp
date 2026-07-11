@@ -8,6 +8,7 @@ const KEYS = {
   maxes: "olyapp.v2.maxes",
   sessions: "olyapp.v2.sessions",
   current: "olyapp.v2.current",
+  familyNotes: "olyapp.v2.familyNotes",
   lastModified: "olyapp.v2.lastModified",
 };
 
@@ -73,6 +74,28 @@ export function setMax(key, value) {
   touch();
 }
 
+// ── Lift-family notes ─────────────────────────────────────────────────
+// One free-text note per lift family (snatch / clean / jerk / squat) that
+// persists across workouts — the same note shows on every lift in that
+// family, so "quicker elbows on the turnover" written under power clean is
+// there next clean day too.
+
+export function getFamilyNotes() {
+  return readJSON(KEYS.familyNotes, {});
+}
+
+export function getFamilyNote(family) {
+  return getFamilyNotes()[family] ?? "";
+}
+
+export function setFamilyNote(family, text) {
+  const notes = getFamilyNotes();
+  if (text && text.trim()) notes[family] = text;
+  else delete notes[family];
+  writeJSON(KEYS.familyNotes, notes);
+  touch();
+}
+
 // ── Logged sessions ───────────────────────────────────────────────────
 
 export function getSessions() {
@@ -117,6 +140,7 @@ export function exportAllData() {
     settings: readJSON(KEYS.settings, {}),
     maxes: readJSON(KEYS.maxes, {}),
     sessions: readJSON(KEYS.sessions, []),
+    familyNotes: readJSON(KEYS.familyNotes, {}),
   };
 }
 
@@ -127,6 +151,7 @@ export function importAllData(data, options = {}) {
   writeJSON(KEYS.settings, data.settings ?? {});
   writeJSON(KEYS.maxes, data.maxes ?? {});
   writeJSON(KEYS.sessions, data.sessions);
+  writeJSON(KEYS.familyNotes, data.familyNotes ?? {});
   // Record the snapshot's own timestamp so a sync pull doesn't immediately
   // look like a fresh local edit and push right back up.
   touch(options.at ?? new Date().toISOString());
