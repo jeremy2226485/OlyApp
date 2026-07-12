@@ -90,8 +90,12 @@ export function renderGenerate(root) {
     if (!liftSelect) return;
     const fam = state.family === "auto" ? autoFamily : state.family;
     const intent = state.intent === "auto" ? autoIntent : state.intent;
-    const big = intent === "big" || intent === "test";
-    const ids = intent === "test" ? COMP_POOLS[fam].big : COMP_POOLS[fam][big ? "big" : "little"];
+    // An explicit pick is an override, so offer the family's full pool (big +
+    // little variants — e.g. Jerk from rack on a C&J day); the loading engine
+    // still matches the scheme to the day type. Test days only list lifts
+    // with a max-test profile.
+    let ids = [...new Set([...COMP_POOLS[fam].big, ...COMP_POOLS[fam].little])];
+    if (intent === "test") ids = ids.filter((id) => exerciseById(id).loading.test);
     const keep = state.compExerciseId;
     liftSelect.replaceChildren(
       h("option", { value: "" }, "Auto-pick main lift"),
