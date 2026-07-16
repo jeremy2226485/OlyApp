@@ -37,6 +37,13 @@ export const JERK_CUE =
 // into the lifting warm-up whenever the lift appears as a primary.
 export const CLEAN_PREP = ["Tall muscle clean x5", "Tall clean x5"];
 export const JERK_PREP = ["BTN push jerk in split x5", "Press in split x5", "Widen my split x5"];
+export const SNATCH_PREP = [
+  "Tall high pull + tall muscle snatch (1+1) x5",
+  "OHS x5",
+  "BTN press — stay low and tight x5",
+  "Drop snatch — knees up, feet flat landing x5",
+  "Tall snatch x5",
+];
 
 export const EXERCISES = [
   // ── Competition lifts ────────────────────────────────────────────────
@@ -48,6 +55,7 @@ export const EXERCISES = [
     maxRef: "snatch",
     systemic: "big",
     repCap: 3,
+    prepDrills: SNATCH_PREP,
     loading: {
       heavy: { scheme: "heavySingle", start: 0.75, top: 0.9, backoffPct: 0.8, backoffSets: 2 },
       moderate: { scheme: "wave", low: 0.72, high: 0.82, waves: 2 },
@@ -121,6 +129,7 @@ export const EXERCISES = [
     maxRef: "powerSnatch",
     systemic: "little",
     repCap: 3,
+    prepDrills: SNATCH_PREP,
     loading: {
       heavy: { scheme: "heavySingle", start: 0.75, top: 0.88, backoffPct: 0.78, backoffSets: 1 },
       moderate: { scheme: "ascendDoubles", start: 0.7, top: 0.82, sets: 5 },
@@ -153,6 +162,7 @@ export const EXERCISES = [
     maxRef: "snatch",
     systemic: "little",
     repCap: 3,
+    prepDrills: SNATCH_PREP,
     loading: {
       moderate: { scheme: "ascendDoubles", start: 0.68, top: 0.78, sets: 5 },
       technique: { scheme: "setsAcross", pct: 0.72, reps: 2, sets: 5 },
@@ -203,6 +213,7 @@ export const EXERCISES = [
     systemic: "little",
     repCap: 2,
     repsLabel: "1+1",
+    prepDrills: SNATCH_PREP,
     loading: {
       moderate: { scheme: "setsAcross", pct: 0.68, reps: 1, sets: 5, repsLabel: "1+1" },
       technique: { scheme: "setsAcross", pct: 0.62, reps: 1, sets: 5, repsLabel: "1+1" },
@@ -218,6 +229,7 @@ export const EXERCISES = [
     systemic: "little",
     repCap: 2,
     repsLabel: "1+1",
+    prepDrills: SNATCH_PREP,
     loading: {
       moderate: { scheme: "setsAcross", pct: 0.62, reps: 1, sets: 5, repsLabel: "1+1" },
       technique: { scheme: "setsAcross", pct: 0.58, reps: 1, sets: 5, repsLabel: "1+1" },

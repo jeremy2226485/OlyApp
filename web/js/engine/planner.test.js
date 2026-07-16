@@ -161,6 +161,17 @@ test("accessory folds core in and alternates emphasis; heavy core only on big da
   assert.ok(!little.accessory.moves.some((m) => m.category === "coreHeavy"), "little day keeps core light/static");
 });
 
+test("snatch prep drills land in the warm-up on any snatch primary", () => {
+  for (const compExerciseId of ["snatch", "powerSnatch", "hangSnatch", "snatchComplex", "powerSnatchHangSnatch"]) {
+    const session = generateSession(90, [], MAXES, {}, { family: "snatch", compExerciseId }, rng);
+    const drills = session.warmup.prepGroups.flatMap((g) => g.drills);
+    assert.ok(drills.some((d) => /tall high pull/i.test(d)), `${compExerciseId}: tall high pull present`);
+    assert.ok(drills.some((d) => /drop snatch/i.test(d)), `${compExerciseId}: drop snatch present`);
+    // No duplicate drills even if multiple snatch-family blocks carry the prep.
+    assert.equal(new Set(drills).size, drills.length, `${compExerciseId}: prep drills de-duplicated`);
+  }
+});
+
 test("clean/jerk prep drills and cues ride along on the block", () => {
   const session = generateSession(90, [loggedSession({ family: "snatch", intent: "little" })], MAXES, {}, { compExerciseId: "cleanAndJerk" }, rng);
   const comp = session.blocks.find((b) => b.exerciseId === "cleanAndJerk");
